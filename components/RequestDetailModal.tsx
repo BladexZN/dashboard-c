@@ -385,11 +385,11 @@ const RequestDetailModal: React.FC<RequestDetailModalProps> = ({ isOpen, onClose
                   >
                     <div>
                       <span className="text-xs text-muted-light dark:text-muted-dark block mb-1">Cliente</span>
-                      <div className="flex items-center">
-                        <div className={`w-5 h-5 rounded-full flex items-center justify-center text-[8px] mr-2 font-bold ${details.clientColor}`}>
+                      <div className="flex items-center min-w-0">
+                        <div className={`w-5 h-5 rounded-full flex items-center justify-center text-[8px] mr-2 font-bold flex-shrink-0 ${details.clientColor}`}>
                           {details.clientInitials}
                         </div>
-                        <span className="text-sm font-medium text-text-light dark:text-white">{details.cliente}</span>
+                        <span className="text-sm font-medium text-text-light dark:text-white truncate" title={details.cliente}>{details.cliente}</span>
                       </div>
                     </div>
                     <div>

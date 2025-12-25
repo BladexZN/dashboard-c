@@ -168,15 +168,17 @@ const RequestsTable: React.FC<RequestsTableProps> = ({
                     <input className="rounded-lg border-white/10 bg-white/5 text-primary focus:ring-0 focus:ring-offset-0 cursor-pointer" type="checkbox"/>
                   </td>
                   <td className="px-6 py-4 font-medium text-text-light dark:text-white">{req.id}</td>
-                  <td className="px-6 py-4 text-text-light dark:text-gray-300">
-                    <div className="flex items-center">
-                      <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] mr-2 font-bold ${req.clientColor}`}>
+                  <td className="px-6 py-4 text-text-light dark:text-gray-300 max-w-[200px]">
+                    <div className="flex items-center min-w-0">
+                      <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] mr-2 font-bold flex-shrink-0 ${req.clientColor}`}>
                         {req.clientInitials}
                       </div>
-                      {req.client}
+                      <span className="truncate" title={req.client}>{req.client}</span>
                     </div>
                   </td>
-                  <td className="px-6 py-4 text-text-light dark:text-gray-300">{req.product}</td>
+                  <td className="px-6 py-4 text-text-light dark:text-gray-300 max-w-[200px]">
+                    <span className="truncate block" title={req.product}>{req.product}</span>
+                  </td>
                   <td className="px-6 py-4">
                     <span className={`inline-flex items-center px-2 py-0.5 rounded-lg text-xs font-medium border
                       ${req.type === 'Nueva solicitud' ? 'bg-purple-500/10 text-purple-400 border-purple-500/20' : ''}

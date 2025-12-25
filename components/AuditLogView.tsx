@@ -211,8 +211,12 @@ const AuditLogView: React.FC<AuditLogViewProps> = ({ logs, deletedRequests = [],
                         transition={{ ...springConfig.gentle, delay: idx * 0.02 }}
                       >
                         <td className="px-6 py-4 font-medium text-text-light dark:text-white">{req.id}</td>
-                        <td className="px-6 py-4 text-text-light dark:text-gray-300">{req.client}</td>
-                        <td className="px-6 py-4 text-text-light dark:text-gray-300">{req.product}</td>
+                        <td className="px-6 py-4 text-text-light dark:text-gray-300 max-w-[180px]">
+                          <span className="truncate block" title={req.client}>{req.client}</span>
+                        </td>
+                        <td className="px-6 py-4 text-text-light dark:text-gray-300 max-w-[180px]">
+                          <span className="truncate block" title={req.product}>{req.product}</span>
+                        </td>
                         <td className="px-6 py-4">
                            <div className="flex items-center text-xs glass-light rounded-lg px-2 py-1 w-fit border border-white/10">
                               <span className="material-icons-round text-sm mr-1 text-muted-dark">person</span>

@@ -200,70 +200,73 @@ const Header: React.FC<HeaderProps> = ({
           <AnimatePresence>
             {isNotifOpen && (
               <motion.div
-                className="absolute right-0 top-full mt-2 w-80 glass border border-white/10 rounded-2xl shadow-apple-lg z-50 overflow-hidden"
+                className="absolute right-0 top-full mt-2 w-72 glass-darker border border-white/10 rounded-xl shadow-apple-lg z-50 overflow-hidden"
                 initial={{ opacity: 0, y: -10, scale: 0.95 }}
                 animate={{ opacity: 1, y: 0, scale: 1 }}
                 exit={{ opacity: 0, y: -10, scale: 0.95 }}
                 transition={springConfig.snappy}
               >
-                 <div className="flex items-center justify-between p-3 border-b border-white/10">
-                    <h3 className="text-xs font-bold text-text-light dark:text-white">Notificaciones</h3>
-                    {unreadCount > 0 && (
-                      <motion.button
-                        onClick={(e) => { e.stopPropagation(); onMarkAllRead(); }}
-                        className="text-[10px] text-primary hover:underline font-medium"
-                        whileHover={{ scale: 1.05 }}
-                        whileTap={{ scale: 0.95 }}
-                      >
-                        Marcar todo leído
-                      </motion.button>
-                    )}
-                 </div>
+                <div className="px-3 py-2 border-b border-white/10 flex justify-between items-center bg-black/40">
+                  <h3 className="font-semibold text-white text-xs flex items-center">
+                    <span className="material-icons-round text-primary mr-1.5 text-sm">notifications</span>
+                    Notificaciones
+                  </h3>
+                  {unreadCount > 0 && (
+                    <motion.button
+                      onClick={(e) => { e.stopPropagation(); onMarkAllRead(); }}
+                      className="text-[9px] text-primary hover:text-primary-dark font-bold uppercase tracking-wide"
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                    >
+                      Marcar todas
+                    </motion.button>
+                  )}
+                </div>
 
-                 <div className="max-h-80 overflow-y-auto">
-                   {notifications.length === 0 ? (
-                      <div className="p-8 text-center">
-                         <span className="material-icons-round text-3xl text-muted-dark opacity-30 mb-2">notifications_off</span>
-                         <p className="text-xs text-muted-dark">No tienes notificaciones recientes</p>
-                      </div>
-                   ) : (
-                      <div className="divide-y divide-white/10">
-                        {notifications.map((n, idx) => (
-                          <motion.div
-                            key={n.id}
-                            onClick={() => handleNotificationClick(n.id, n.solicitud_id)}
-                            className={`p-3 hover:bg-white/5 cursor-pointer apple-transition ${!n.is_read ? 'bg-primary/5' : ''}`}
-                            initial={{ opacity: 0, x: -10 }}
-                            animate={{ opacity: 1, x: 0 }}
-                            transition={{ ...springConfig.snappy, delay: idx * 0.03 }}
-                          >
-                             <div className="flex items-start justify-between">
-                                <h4 className={`text-xs ${!n.is_read ? 'font-bold text-primary' : 'font-medium text-text-light dark:text-white'}`}>{n.titulo}</h4>
-                                <span className="text-[9px] text-muted-dark whitespace-nowrap ml-2">{getRelativeTime(n.created_at)}</span>
-                             </div>
-                             <p className="text-xs text-muted-light dark:text-muted-dark mt-1 line-clamp-2">{n.mensaje}</p>
-                             {!n.is_read && (
-                               <div className="mt-2 flex justify-end">
-                                 <motion.span
-                                   className="w-2 h-2 rounded-full bg-primary"
-                                   animate={{ scale: [1, 1.2, 1] }}
-                                   transition={{ repeat: Infinity, duration: 2 }}
-                                 />
-                               </div>
-                             )}
-                          </motion.div>
-                        ))}
-                      </div>
-                   )}
-                 </div>
-                 <div className="p-2 border-t border-white/10 text-center">
-                   <motion.button
-                     className="text-[10px] text-muted-dark hover:text-text-light dark:hover:text-white"
-                     whileHover={{ scale: 1.05 }}
-                   >
-                     Ver todas
-                   </motion.button>
-                 </div>
+                <div className="max-h-80 overflow-y-auto custom-scrollbar">
+                  {notifications.length === 0 ? (
+                    <motion.div
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      className="p-4 text-center"
+                    >
+                      <span className="material-icons-round text-2xl text-gray-700 mb-1">inbox</span>
+                      <p className="text-xs text-muted-dark">Sin notificaciones</p>
+                    </motion.div>
+                  ) : (
+                    notifications.map((n, idx) => (
+                      <motion.div
+                        key={n.id}
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        transition={{ duration: 0.15, delay: idx * 0.01 }}
+                        onClick={() => handleNotificationClick(n.id, n.solicitud_id)}
+                        className={`px-2.5 py-2 border-b border-white/5 cursor-pointer hover:bg-white/5 apple-transition ${!n.is_read ? 'bg-primary/5' : ''}`}
+                      >
+                        <div className="flex items-start">
+                          <span className="material-icons-round text-sm text-primary" style={{ marginRight: '-2px' }}>
+                            {n.tipo === 'correccion' ? 'error_outline' : n.tipo === 'solicitud_lista' ? 'check_circle' : 'notifications'}
+                          </span>
+                          <div className="flex-1">
+                            <p className={`text-[11px] leading-tight ${!n.is_read ? 'text-white font-medium' : 'text-gray-400'}`}>
+                              {n.titulo}
+                            </p>
+                            <p className="text-[10px] text-muted-dark leading-tight mt-0.5 line-clamp-2">{n.mensaje}</p>
+                            <span className="text-[9px] text-gray-500">{getRelativeTime(n.created_at)}</span>
+                          </div>
+                          {!n.is_read && <span className="w-1.5 h-1.5 bg-primary rounded-full ml-1 mt-1" />}
+                        </div>
+                      </motion.div>
+                    ))
+                  )}
+                </div>
+                {notifications.length > 0 && (
+                  <div className="px-3 py-1.5 border-t border-white/10 bg-black/40 text-center">
+                    <span className="text-[9px] text-gray-500">
+                      Últimas {notifications.length} notificaciones
+                    </span>
+                  </div>
+                )}
               </motion.div>
             )}
           </AnimatePresence>

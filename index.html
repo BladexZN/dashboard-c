@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="es" class="dark">
+<head>
+    <meta charset="utf-8"/>
+    <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+    <title>Digital DC Dashboard Production</title>
+    <link rel="icon" type="image/png" href="https://i.imgur.com/fJgCqFA.png" />
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet"/>
+    <!-- SF Pro Font -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@aspect-ui/sf-pro-font@1.0.0/sf-pro.min.css" />
+    <script>
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        primary: "#007AFF",
+                        "primary-dark": "#0051D5",
+                        "primary-light": "#5AC8FA",
+                        "background-light": "#F5F5F7",
+                        "background-dark": "#000000",
+                        "surface-light": "#FFFFFF",
+                        "surface-dark": "rgba(28, 28, 30, 0.8)",
+                        "surface-darker": "rgba(18, 18, 20, 0.9)",
+                        "border-light": "#D2D2D7",
+                        "border-dark": "rgba(255, 255, 255, 0.1)",
+                        "text-light": "#1D1D1F",
+                        "text-dark": "#F5F5F7",
+                        "muted-light": "#86868B",
+                        "muted-dark": "#86868B",
+                    },
+                    fontFamily: {
+                        sans: ["SF Pro Display", "SF Pro Text", "-apple-system", "BlinkMacSystemFont", "Helvetica Neue", "Arial", "sans-serif"],
+                        display: ["SF Pro Display", "-apple-system", "BlinkMacSystemFont", "Helvetica Neue", "sans-serif"],
+                        mono: ["SF Mono", "ui-monospace", "SFMono-Regular", "Menlo", "Monaco", "Consolas", "monospace"],
+                    },
+                    boxShadow: {
+                        'apple': '0 4px 24px -4px rgba(0, 0, 0, 0.3), 0 2px 8px -2px rgba(0, 0, 0, 0.2)',
+                        'apple-lg': '0 8px 40px -8px rgba(0, 0, 0, 0.4), 0 4px 16px -4px rgba(0, 0, 0, 0.3)',
+                        'apple-glow': '0 0 20px rgba(0, 122, 255, 0.4), 0 0 40px rgba(0, 122, 255, 0.2)',
+                        'apple-sm': '0 2px 8px -2px rgba(0, 0, 0, 0.2)',
+                    },
+                    backdropBlur: {
+                        'apple': '20px',
+                    },
+                },
+            },
+        };
+    </script>
+    <style>
+        /* Apple-style Glassmorphism */
+        .glass {
+            background: rgba(28, 28, 30, 0.72);
+            backdrop-filter: blur(20px) saturate(180%);
+            -webkit-backdrop-filter: blur(20px) saturate(180%);
+        }
+        .glass-darker {
+            background: rgba(18, 18, 20, 0.85);
+            backdrop-filter: blur(20px) saturate(180%);
+            -webkit-backdrop-filter: blur(20px) saturate(180%);
+        }
+        .glass-light {
+            background: rgba(38, 38, 40, 0.72);
+            backdrop-filter: blur(20px) saturate(180%);
+            -webkit-backdrop-filter: blur(20px) saturate(180%);
+        }
+
+        /* Apple-style transitions */
+        .apple-transition {
+            transition: all 0.3s cubic-bezier(0.25, 0.1, 0.25, 1);
+        }
+
+        /* Scrollbar styling */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.15);
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(255, 255, 255, 0.25);
+        }
+
+        /* Selection styling */
+        ::selection {
+            background: rgba(0, 122, 255, 0.3);
+            color: inherit;
+        }
+
+        /* Override Tailwind Forms plugin defaults for dark theme */
+        input, textarea, select {
+            background-color: rgba(28, 28, 30, 0.72) !important;
+            color: #F5F5F7 !important;
+        }
+        input::placeholder, textarea::placeholder {
+            color: #86868B !important;
+        }
+        input:focus, textarea:focus, select:focus {
+            background-color: rgba(28, 28, 30, 0.85) !important;
+        }
+        /* Checkbox and radio overrides */
+        input[type="checkbox"], input[type="radio"] {
+            background-color: rgba(255, 255, 255, 0.05) !important;
+            border-color: rgba(255, 255, 255, 0.2) !important;
+        }
+        input[type="checkbox"]:checked, input[type="radio"]:checked {
+            background-color: #007AFF !important;
+            border-color: #007AFF !important;
+        }
+        /* Select dropdown options */
+        option {
+            background-color: #1C1C1E !important;
+            color: #F5F5F7 !important;
+        }
+    </style>
+<script type="importmap">
+{
+  "imports": {
+    "recharts": "https://esm.sh/recharts@^3.6.0",
+    "react/": "https://esm.sh/react@^19.2.3/",
+    "react": "https://esm.sh/react@^19.2.3",
+    "react-dom/": "https://esm.sh/react-dom@^19.2.3/",
+    "@supabase/supabase-js": "https://esm.sh/@supabase/supabase-js@2",
+    "framer-motion": "https://esm.sh/framer-motion@^11.0.0"
+  }
+}
+</script>
+<link rel="stylesheet" href="/index.css">
+</head>
+<body class="bg-background-light dark:bg-background-dark text-text-light dark:text-text-dark font-sans h-screen overflow-hidden">
+    <div id="root" class="h-full"></div>
+<script type="module" src="/index.tsx"></script>
+</body>
+</html>

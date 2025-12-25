@@ -1,0 +1,188 @@
+
+export type RequestStatus = 'Pendiente' | 'En Producción' | 'Listo' | 'Entregado' | 'Corrección';
+export type RequestPriority = 'Alta' | 'Media' | 'Baja' | 'Urgente';
+export type RequestType = 'Nueva solicitud' | 'Corrección/Añadido' | 'Ajuste';
+
+// Board number for 4 production boards (each designer)
+export type BoardNumber = 1 | 2 | 3 | 4;
+
+// Attachment interface for file uploads (reference images, inspiration, etc.)
+export interface Attachment {
+  id: string;
+  name: string;
+  url: string;
+  size: number;
+  type: string;
+  uploaded_at: string;
+}
+
+// Final design interface
+export interface FinalDesign {
+  id: string;
+  name: string;
+  url: string;
+  size: number;
+  type: string;
+  uploaded_at: string;
+}
+
+export type Page = 'dashboard' | 'solicitudes' | 'produccion' | 'bitacora' | 'reportes' | 'usuarios' | 'configuracion';
+
+export type DateFilter = 'Hoy' | 'Este Mes' | 'Año' | string; // string ISO format for specific days
+
+// Interface matching the UI requirements (Mapped from DB)
+export interface RequestData {
+  id: string; // This corresponds to 'folio' in UI
+  uuid: string; // The real DB UUID
+  client: string;
+  clientInitials: string;
+  clientColor: string;
+  product: string;
+  type: RequestType;
+  priority: RequestPriority;
+  status: RequestStatus;
+  advisor: string;
+  advisorId: string;
+  advisorInitials: string;
+  date: string; // Formatted date
+  rawDate: string; // ISO String for filtering
+  description?: string;
+  escaleta?: string;
+  downloadable_links?: string[];
+  // Attachments (reference images, inspiration)
+  attachments?: Attachment[];
+  // Final design file
+  final_design?: FinalDesign | null;
+  // Board number for designer assignment
+  board_number?: BoardNumber;
+  completed_at?: string;
+  created_by_user_id?: string;
+  // Soft Delete Fields
+  is_deleted?: boolean;
+  deleted_at?: string;
+  deleted_by?: string; // Name of the user who deleted it
+}
+
+// Database Interfaces
+export interface DBSolicitud {
+  id: string; // uuid
+  folio: number; // integer/serial in DB usually, or string if configured that way
+  cliente: string;
+  producto: string;
+  tipo: string;
+  prioridad: string | null;
+  asesor_id: string;
+  fecha_creacion: string;
+  descripcion: string;
+  escaleta_video: string; // Renamed to match schema
+  material_descargable: string[]; // Renamed to match schema (JSON array)
+  is_deleted?: boolean;
+  deleted_at?: string;
+  deleted_by?: string;
+}
+
+export interface DBEstadoSolicitud {
+  id: string;
+  solicitud_id: string;
+  estado: string;
+  usuario_id: string;
+  timestamp: string; // Correct column name
+  nota?: string;
+}
+
+export interface DBUsuario {
+  id: string;
+  nombre: string;
+  email: string;
+  rol: string;
+  estado: string;
+  avatar_url?: string;
+}
+
+export interface DBNotificationLog {
+  id: string;
+  solicitud_id: string;
+  tipo: string;
+  destinatario: string;
+  canal: 'in_app' | 'email' | 'whatsapp';
+  timestamp: string;
+  status: 'queued' | 'sent' | 'failed';
+}
+
+export interface InboxNotification {
+  id: string;
+  user_id: string;
+  solicitud_id: string;
+  titulo: string;
+  mensaje: string;
+  tipo: string;
+  is_read: boolean;
+  created_at: string;
+}
+
+export interface AppSettings {
+  notifyProduction: boolean;
+  notifyAdvisor: boolean;
+}
+
+export interface AuditLogEntry {
+  id: string;
+  timestamp: string; // ISO string
+  displayTime: string; // Formatted
+  folio: string;
+  user: string;
+  status: string; // The specific status set in this event
+  action: string; // Derived description
+  solicitudId?: string; // Link to request UUID for metrics
+}
+
+export interface User {
+  id: string;
+  name: string;
+  role: string;
+  avatar: string;
+  email: string;
+  status: 'Activo' | 'Inactivo';
+}
+
+export interface UserProfile {
+  id: string;
+  nombre: string;
+  email: string;
+  rol: string;
+  estado: string;
+  avatar_url?: string;
+}
+
+export interface Notification {
+  id: string;
+  message: string;
+  type: 'success' | 'info';
+}
+
+export interface StatCardData {
+  title: string;
+  value: number;
+  icon: string;
+  colorClass: string; 
+  bgClass: string;
+}
+
+export interface AdvisorStat {
+  name: string;
+  count: number;
+  color: string;
+  percent: number;
+}
+
+export interface ProductStat {
+  name: string;
+  value: number;
+  color: string;
+}
+
+export interface VolumeStat {
+  name: string;
+  value: number;
+  color: string;
+}

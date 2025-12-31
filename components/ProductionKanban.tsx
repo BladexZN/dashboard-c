@@ -193,7 +193,7 @@ const ProductionKanban: React.FC<ProductionKanbanProps> = ({ requests, onStatusC
                          `}
                          initial={{ opacity: 0, y: 10 }}
                          animate={{ opacity: 1, y: 0 }}
-                         transition={{ ...springConfig.gentle, delay: idx * 0.03 }}
+                         transition={{ ...springConfig.gentle, delay: idx < 20 ? idx * 0.015 : 0.3 }}
                          whileHover={{ y: -2, scale: 1.02 }}
                          whileTap={buttonTap}
                        >
@@ -208,7 +208,7 @@ const ProductionKanban: React.FC<ProductionKanbanProps> = ({ requests, onStatusC
                                }`}>{req.priority}</span>
                             </div>
 
-                            <h4 className="text-base font-bold text-text-light dark:text-white mb-1 leading-snug pr-2 select-none truncate" title={req.product}>{req.product}</h4>
+                            <h4 className="text-base font-bold text-text-light dark:text-white mb-1 leading-snug pr-2 select-none line-clamp-2" title={req.product}>{req.product}</h4>
                             <p className="text-sm text-muted-light dark:text-muted-dark mb-5 truncate select-none" title={req.client}>{req.client}</p>
 
                             <div className="mt-auto pt-4 border-t border-white/10 flex items-center justify-between">

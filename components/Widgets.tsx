@@ -105,7 +105,7 @@ const Widgets: React.FC<WidgetsProps> = ({ requests, loading }) => {
                 key={index}
                 initial={{ opacity: 0, x: -10 }}
                 animate={{ opacity: 1, x: 0 }}
-                transition={{ ...springConfig.gentle, delay: index * 0.05 }}
+                transition={{ ...springConfig.gentle, delay: index < 10 ? index * 0.02 : 0.2 }}
               >
                 <div className="flex justify-between text-xs mb-1">
                   <span className="text-muted-light dark:text-gray-400">{advisor.name}</span>
@@ -205,7 +205,7 @@ const Widgets: React.FC<WidgetsProps> = ({ requests, loading }) => {
                    transition={{ ...springConfig.gentle, delay: idx * 0.05 }}
                  >
                    <span className="w-2.5 h-2.5 rounded-full mr-2 flex-shrink-0" style={{ backgroundColor: prod.color }}></span>
-                   <span className="text-gray-400 truncate max-w-[120px]" title={prod.name}>{prod.name}</span>
+                   <span className="text-gray-400 truncate max-w-[80px] sm:max-w-[120px] lg:max-w-[150px]" title={prod.name}>{prod.name}</span>
                  </motion.div>
                ))}
              </div>

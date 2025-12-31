@@ -161,7 +161,7 @@ const RequestsTable: React.FC<RequestsTableProps> = ({
                   onClick={() => onRowClick(req)}
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
-                  transition={{ ...springConfig.gentle, delay: idx * 0.02 }}
+                  transition={{ ...springConfig.gentle, delay: idx < 20 ? idx * 0.015 : 0.3 }}
                   whileHover={{ backgroundColor: 'rgba(255,255,255,0.05)' }}
                 >
                   <td className="px-6 py-4" onClick={(e) => e.stopPropagation()}>

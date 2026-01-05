@@ -81,16 +81,6 @@ const Sidebar: React.FC<SidebarProps> = ({ currentPage, onNavigate }) => {
         </motion.div>
 
         <motion.div
-          onClick={() => onNavigate('bitacora')}
-          className={navItemClass('bitacora')}
-          whileHover={{ x: 4 }}
-          whileTap={buttonTap}
-          transition={springConfig.snappy}
-        >
-          <span className="material-icons-round mr-3 text-lg">history_edu</span>
-          Bitácora
-        </motion.div>
-        <motion.div
           onClick={() => onNavigate('reportes')}
           className={navItemClass('reportes')}
           whileHover={{ x: 4 }}
@@ -99,6 +89,16 @@ const Sidebar: React.FC<SidebarProps> = ({ currentPage, onNavigate }) => {
         >
           <span className="material-icons-round mr-3 text-lg">bar_chart</span>
           Reportes
+        </motion.div>
+        <motion.div
+          onClick={() => onNavigate('bitacora')}
+          className={navItemClass('bitacora')}
+          whileHover={{ x: 4 }}
+          whileTap={buttonTap}
+          transition={springConfig.snappy}
+        >
+          <span className="material-icons-round mr-3 text-lg">history_edu</span>
+          Bitácora
         </motion.div>
         <motion.div
           onClick={() => onNavigate('usuarios')}

@@ -167,7 +167,7 @@ const ReportsView: React.FC<ReportsViewProps> = ({ requests, history, dateFilter
       }
     });
     return Object.entries(groups)
-      .map(([name, stat]) => ({ name, total: stat.total, percentCorrection: (stat.corrections / stat.total) * 100, avgToListo: stat.countToListo > 0 ? stat.timeToListoSum / stat.countToListo : 0 }))
+      .map(([name, stat]) => ({ name, total: stat.total, percentCorrection: stat.total > 0 ? (stat.corrections / stat.total) * 100 : 0, avgToListo: stat.countToListo > 0 ? stat.timeToListoSum / stat.countToListo : 0 }))
       .sort((a, b) => b.total - a.total).slice(0, 5);
   }, [processedData]);
 

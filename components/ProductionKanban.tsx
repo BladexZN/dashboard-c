@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useCallback, memo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { RequestData, RequestStatus } from '../types';
 import { springConfig, buttonTap } from '../lib/animations';
@@ -12,6 +12,111 @@ interface ProductionKanbanProps {
 }
 
 const SECTIONS: RequestStatus[] = ['Pendiente', 'En Producción', 'Corrección', 'Listo', 'Entregado'];
+const ITEMS_PER_SECTION = 12;
+const MAX_ANIMATED_ITEMS = 8;
+
+// Memoized KanbanCard component for performance
+interface KanbanCardProps {
+  req: RequestData;
+  idx: number;
+  isExactMatch: boolean;
+  isDragging: boolean;
+  deleteConfirmId: string | null;
+  onDragStart: (e: React.DragEvent, id: string) => void;
+  onDragEnd: () => void;
+  onViewDetail: (request: RequestData) => void;
+  onEditRequest: (request: RequestData) => void;
+  onDeleteClick: (e: React.MouseEvent, req: RequestData) => void;
+  getPriorityColor: (p: string) => string;
+}
+
+const KanbanCard = memo<KanbanCardProps>(({
+  req, idx, isExactMatch, isDragging, deleteConfirmId,
+  onDragStart, onDragEnd, onViewDetail, onEditRequest, onDeleteClick, getPriorityColor
+}) => {
+  const shouldAnimate = idx < MAX_ANIMATED_ITEMS;
+
+  return (
+    <motion.div
+      key={req.id}
+      draggable
+      onDragStart={(e) => onDragStart(e as any, req.id)}
+      onDragEnd={onDragEnd}
+      onClick={() => onViewDetail(req)}
+      className={`
+        glass p-5 rounded-2xl border flex flex-col relative overflow-hidden group shadow-apple
+        ${isDragging ? 'opacity-40 scale-95 ring-2 ring-primary/50' : 'opacity-100'}
+        ${isExactMatch
+           ? 'border-primary ring-2 ring-primary shadow-apple-glow z-10'
+           : 'border-white/10 hover:border-primary/50 hover:shadow-apple-lg'}
+        apple-transition cursor-grab active:cursor-grabbing
+      `}
+      initial={shouldAnimate ? { opacity: 0, y: 10 } : false}
+      animate={{ opacity: 1, y: 0 }}
+      transition={shouldAnimate ? { ...springConfig.gentle, delay: idx * 0.015 } : { duration: 0 }}
+      whileHover={{ y: -2, scale: 1.02 }}
+      whileTap={buttonTap}
+    >
+       {/* Accent Line */}
+       <div className={`absolute top-0 left-0 w-1 h-full ${getPriorityColor(req.priority)} opacity-80`}></div>
+
+       <div className="pl-3">
+         <div className="flex justify-between items-start mb-3">
+            <span className={`text-xs font-medium ${isExactMatch ? 'text-primary' : 'text-muted-dark'}`}>{req.id}</span>
+            <span className={`text-[10px] px-1.5 py-0.5 rounded-lg uppercase font-bold tracking-wider ${
+               req.priority === 'Urgente' ? 'text-red-500 bg-red-500/10' : 'text-muted-dark glass-light'
+            }`}>{req.priority}</span>
+         </div>
+
+         <h4 className="text-base font-bold text-text-light dark:text-white mb-1 leading-snug pr-2 select-none line-clamp-2" title={req.product}>{req.product}</h4>
+         <p className="text-sm text-muted-light dark:text-muted-dark mb-5 truncate select-none" title={req.client}>{req.client}</p>
+
+         <div className="mt-auto pt-4 border-t border-white/10 flex items-center justify-between">
+            <div className="flex items-center">
+               <div className="w-7 h-7 rounded-full bg-gray-700 text-[10px] flex items-center justify-center text-white mr-2 border-2 border-white/10 ring-1 ring-white/5">
+                 {req.advisorInitials}
+               </div>
+               <span className="text-xs text-muted-dark select-none">{req.date}</span>
+            </div>
+
+            <div className="flex items-center space-x-1">
+              {/* Edit Button */}
+              <motion.button
+                onClick={(e) => { e.stopPropagation(); onEditRequest(req); }}
+                className="p-1.5 rounded-lg apple-transition text-muted-dark hover:text-primary hover:bg-primary/10 opacity-0 group-hover:opacity-100"
+                title="Editar solicitud"
+                whileHover={{ scale: 1.1 }}
+                whileTap={{ scale: 0.9 }}
+              >
+                <span className="material-icons-round text-lg">edit</span>
+              </motion.button>
+
+              {/* Delete Button with double-click confirmation */}
+              <motion.button
+                onClick={(e) => onDeleteClick(e, req)}
+                className={`
+                  p-1.5 rounded-lg apple-transition
+                  ${deleteConfirmId === req.id
+                    ? 'bg-red-500/20 text-red-500 ring-2 ring-red-500 scale-110'
+                    : 'text-muted-dark hover:text-red-500 hover:bg-red-500/10 opacity-0 group-hover:opacity-100'
+                  }
+                `}
+                title={deleteConfirmId === req.id ? '¡Click para confirmar eliminación!' : 'Eliminar solicitud'}
+                animate={deleteConfirmId === req.id ? { scale: [1, 1.1, 1] } : {}}
+                transition={deleteConfirmId === req.id ? { repeat: Infinity, duration: 0.8 } : springConfig.snappy}
+              >
+                <span className="material-icons-round text-lg">
+                  {deleteConfirmId === req.id ? 'warning' : 'delete_outline'}
+                </span>
+              </motion.button>
+            </div>
+         </div>
+       </div>
+    </motion.div>
+  );
+});
+
+KanbanCard.displayName = 'KanbanCard';
 
 const ProductionKanban: React.FC<ProductionKanbanProps> = ({ requests, onStatusChange, onViewDetail, onEditRequest, onDelete }) => {
   const [localSearch, setLocalSearch] = useState('');
@@ -19,6 +124,14 @@ const ProductionKanban: React.FC<ProductionKanbanProps> = ({ requests, onStatusC
   const [activeDropZone, setActiveDropZone] = useState<RequestStatus | null>(null);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [deleteTimeoutId, setDeleteTimeoutId] = useState<NodeJS.Timeout | null>(null);
+  // Pagination state: track how many items to show per section
+  const [visibleCounts, setVisibleCounts] = useState<Record<RequestStatus, number>>({
+    'Pendiente': ITEMS_PER_SECTION,
+    'En Producción': ITEMS_PER_SECTION,
+    'Corrección': ITEMS_PER_SECTION,
+    'Listo': ITEMS_PER_SECTION,
+    'Entregado': ITEMS_PER_SECTION
+  });
 
   const processedRequests = useMemo(() => {
     let filtered = requests;
@@ -35,31 +148,29 @@ const ProductionKanban: React.FC<ProductionKanbanProps> = ({ requests, onStatusC
     return filtered;
   }, [requests, localSearch]);
 
-  const getPriorityColor = (p: string) => {
+  const getPriorityColor = useCallback((p: string) => {
     if (p === 'Alta' || p === 'Urgente') return 'bg-red-500';
     if (p === 'Media') return 'bg-yellow-500';
     return 'bg-green-500';
-  };
+  }, []);
 
-  const handleDragStart = (e: React.DragEvent, id: string) => {
+  const handleDragStart = useCallback((e: React.DragEvent, id: string) => {
     setDraggedRequestId(id);
     e.dataTransfer.effectAllowed = "move";
     e.dataTransfer.setData("text/plain", id);
-  };
+  }, []);
 
-  const handleDragEnd = () => {
+  const handleDragEnd = useCallback(() => {
     setDraggedRequestId(null);
     setActiveDropZone(null);
-  };
+  }, []);
 
-  const handleDragOver = (e: React.DragEvent, status: RequestStatus) => {
+  const handleDragOver = useCallback((e: React.DragEvent, status: RequestStatus) => {
     e.preventDefault();
-    if (activeDropZone !== status) {
-      setActiveDropZone(status);
-    }
-  };
+    setActiveDropZone(status);
+  }, []);
 
-  const handleDrop = (e: React.DragEvent, status: RequestStatus) => {
+  const handleDrop = useCallback((e: React.DragEvent, status: RequestStatus) => {
     e.preventDefault();
     const id = e.dataTransfer.getData("text/plain");
 
@@ -69,9 +180,9 @@ const ProductionKanban: React.FC<ProductionKanbanProps> = ({ requests, onStatusC
 
     setDraggedRequestId(null);
     setActiveDropZone(null);
-  };
+  }, [onStatusChange]);
 
-  const handleDeleteClick = (e: React.MouseEvent, req: RequestData) => {
+  const handleDeleteClick = useCallback((e: React.MouseEvent, req: RequestData) => {
     e.stopPropagation();
 
     if (deleteConfirmId === req.id) {
@@ -93,7 +204,14 @@ const ProductionKanban: React.FC<ProductionKanbanProps> = ({ requests, onStatusC
       }, 3000);
       setDeleteTimeoutId(timeout);
     }
-  };
+  }, [deleteConfirmId, deleteTimeoutId, onDelete]);
+
+  const handleLoadMore = useCallback((status: RequestStatus) => {
+    setVisibleCounts(prev => ({
+      ...prev,
+      [status]: prev[status] + ITEMS_PER_SECTION
+    }));
+  }, []);
 
   return (
     <div className="space-y-8 pb-12">
@@ -172,87 +290,25 @@ const ProductionKanban: React.FC<ProductionKanbanProps> = ({ requests, onStatusC
 
                 {/* Grid */}
                 <div className={`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5 min-h-[100px] ${isDropZoneActive ? 'opacity-80' : ''}`}>
-                  {sectionRequests.map((req, idx) => {
+                  {sectionRequests.slice(0, visibleCounts[status]).map((req, idx) => {
                      const isExactMatch = localSearch && req.id.toLowerCase() === localSearch.toLowerCase();
                      const isDragging = draggedRequestId === req.id;
 
                      return (
-                       <motion.div
+                       <KanbanCard
                          key={req.id}
-                         draggable
-                         onDragStart={(e) => handleDragStart(e as any, req.id)}
+                         req={req}
+                         idx={idx}
+                         isExactMatch={isExactMatch}
+                         isDragging={isDragging}
+                         deleteConfirmId={deleteConfirmId}
+                         onDragStart={handleDragStart}
                          onDragEnd={handleDragEnd}
-                         onClick={() => onViewDetail(req)}
-                         className={`
-                           glass p-5 rounded-2xl border flex flex-col relative overflow-hidden group shadow-apple
-                           ${isDragging ? 'opacity-40 scale-95 ring-2 ring-primary/50' : 'opacity-100'}
-                           ${isExactMatch
-                              ? 'border-primary ring-2 ring-primary shadow-apple-glow z-10'
-                              : 'border-white/10 hover:border-primary/50 hover:shadow-apple-lg'}
-                           apple-transition cursor-grab active:cursor-grabbing
-                         `}
-                         initial={{ opacity: 0, y: 10 }}
-                         animate={{ opacity: 1, y: 0 }}
-                         transition={{ ...springConfig.gentle, delay: idx < 20 ? idx * 0.015 : 0.3 }}
-                         whileHover={{ y: -2, scale: 1.02 }}
-                         whileTap={buttonTap}
-                       >
-                          {/* Accent Line */}
-                          <div className={`absolute top-0 left-0 w-1 h-full ${getPriorityColor(req.priority)} opacity-80`}></div>
-
-                          <div className="pl-3">
-                            <div className="flex justify-between items-start mb-3">
-                               <span className={`text-xs font-medium ${isExactMatch ? 'text-primary' : 'text-muted-dark'}`}>{req.id}</span>
-                               <span className={`text-[10px] px-1.5 py-0.5 rounded-lg uppercase font-bold tracking-wider ${
-                                  req.priority === 'Urgente' ? 'text-red-500 bg-red-500/10' : 'text-muted-dark glass-light'
-                               }`}>{req.priority}</span>
-                            </div>
-
-                            <h4 className="text-base font-bold text-text-light dark:text-white mb-1 leading-snug pr-2 select-none line-clamp-2" title={req.product}>{req.product}</h4>
-                            <p className="text-sm text-muted-light dark:text-muted-dark mb-5 truncate select-none" title={req.client}>{req.client}</p>
-
-                            <div className="mt-auto pt-4 border-t border-white/10 flex items-center justify-between">
-                               <div className="flex items-center">
-                                  <div className="w-7 h-7 rounded-full bg-gray-700 text-[10px] flex items-center justify-center text-white mr-2 border-2 border-white/10 ring-1 ring-white/5">
-                                    {req.advisorInitials}
-                                  </div>
-                                  <span className="text-xs text-muted-dark select-none">{req.date}</span>
-                               </div>
-
-                               <div className="flex items-center space-x-1">
-                                 {/* Edit Button */}
-                                 <motion.button
-                                   onClick={(e) => { e.stopPropagation(); onEditRequest(req); }}
-                                   className="p-1.5 rounded-lg apple-transition text-muted-dark hover:text-primary hover:bg-primary/10 opacity-0 group-hover:opacity-100"
-                                   title="Editar solicitud"
-                                   whileHover={{ scale: 1.1 }}
-                                   whileTap={{ scale: 0.9 }}
-                                 >
-                                   <span className="material-icons-round text-lg">edit</span>
-                                 </motion.button>
-
-                                 {/* Delete Button with double-click confirmation */}
-                                 <motion.button
-                                   onClick={(e) => handleDeleteClick(e, req)}
-                                   className={`
-                                     p-1.5 rounded-lg apple-transition
-                                     ${deleteConfirmId === req.id
-                                       ? 'bg-red-500/20 text-red-500 ring-2 ring-red-500 scale-110'
-                                       : 'text-muted-dark hover:text-red-500 hover:bg-red-500/10 opacity-0 group-hover:opacity-100'
-                                     }
-                                   `}
-                                   title={deleteConfirmId === req.id ? '¡Click para confirmar eliminación!' : 'Eliminar solicitud'}
-                                   animate={deleteConfirmId === req.id ? { scale: [1, 1.1, 1] } : {}}
-                                   transition={deleteConfirmId === req.id ? { repeat: Infinity, duration: 0.8 } : springConfig.snappy}
-                                 >
-                                   <span className="material-icons-round text-lg">
-                                     {deleteConfirmId === req.id ? 'warning' : 'delete_outline'}
-                                   </span>
-                                 </motion.button>
-                               </div>
-                            </div>
-                          </div>
-                       </motion.div>
+                         onViewDetail={onViewDetail}
+                         onEditRequest={onEditRequest}
+                         onDeleteClick={handleDeleteClick}
+                         getPriorityColor={getPriorityColor}
+                       />
                      );
                   })}
                   {sectionRequests.length === 0 && !localSearch && (
@@ -261,6 +317,19 @@ const ProductionKanban: React.FC<ProductionKanbanProps> = ({ requests, onStatusC
                     </div>
                   )}
                 </div>
+
+                {/* Load More Button */}
+                {sectionRequests.length > visibleCounts[status] && (
+                  <motion.button
+                    onClick={() => handleLoadMore(status)}
+                    className="w-full mt-4 py-3 glass border border-white/10 rounded-xl text-sm font-medium text-muted-dark hover:text-white hover:border-primary/50 apple-transition flex items-center justify-center space-x-2"
+                    whileHover={{ scale: 1.01 }}
+                    whileTap={{ scale: 0.99 }}
+                  >
+                    <span className="material-icons-round text-lg">expand_more</span>
+                    <span>Cargar más ({sectionRequests.length - visibleCounts[status]} restantes)</span>
+                  </motion.button>
+                )}
               </motion.div>
             );
           })}

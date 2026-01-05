@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { supabase } from './lib/supabaseClient';
+import { initSecurity, getClientColor } from './lib/security';
 import Sidebar from './components/Sidebar';
 import Header from './components/Header';
 import Login from './components/Login';
@@ -16,10 +17,13 @@ import RequestDetailModal from './components/RequestDetailModal';
 
 import { RequestData, RequestStatus, Page, AuditLogEntry, Notification, DateFilter, UserProfile, User, InboxNotification, AppSettings } from './types';
 
+// Initialize security (disables console in production)
+initSecurity();
+
 // ============================================
 // DEV MODE - Set to true to bypass login
 // ============================================
-const DEV_MODE = true; // <-- SET TO false BEFORE DEPLOYING TO PRODUCTION!
+const DEV_MODE = false; // PRODUCTION MODE - Login required
 
 // Mock user for dev mode testing
 const DEV_USER: UserProfile = {
@@ -177,7 +181,7 @@ const App: React.FC = () => {
       setCrossLoginStatus('validating');
 
       try {
-        console.log('Cross-login: Token found, validating...', token.substring(0, 20) + '...');
+        // Token validation initiated
 
         // Call validation Edge Function (Dashboard C - Design)
         const response = await fetch(
@@ -189,9 +193,7 @@ const App: React.FC = () => {
           }
         );
 
-        console.log('Response status:', response.status);
         const responseText = await response.text();
-        console.log('Response text:', responseText);
 
         let data;
         try {
@@ -359,7 +361,7 @@ const App: React.FC = () => {
   const fetchDeletedData = useCallback(async () => {
     if (!session) return;
     try {
-      const { data } = await supabase.from('solicitudes').select(`*, asesor:usuarios!asesor_id(id, nombre), deleted_by_user:usuarios!deleted_by(nombre)`).eq('is_deleted', true).order('deleted_at', { ascending: false }).limit(100);
+      const { data } = await supabase.from('solicitudes').select(`*, asesor:usuarios!asesor_id(id, nombre), deleted_by_user:usuarios!deleted_by(nombre)`).eq('is_deleted', true).order('deleted_at', { ascending: false }).limit(500);
       if (data) {
         const mappedDeleted = data.map((dbReq: any) => ({
           id: dbReq.folio ? `#REQ-${dbReq.folio}` : 'PENDING',
@@ -387,7 +389,7 @@ const App: React.FC = () => {
     setDataError(null);
 
     try {
-      const { data: usersData, error: usersError } = await supabase.from('usuarios').select('*').limit(200);
+      const { data: usersData, error: usersError } = await supabase.from('usuarios').select('*').limit(500);
       if (usersError) throw usersError;
 
       const userMap = (usersData || []).reduce((acc, user) => {
@@ -414,7 +416,7 @@ const App: React.FC = () => {
       const { data: solicitudesData, error: reqError } = await query;
       if (reqError) throw reqError;
 
-      const { data: statusData, error: statusError } = await supabase.from('estados_solicitud').select('*').order('timestamp', { ascending: true }).limit(5000);
+      const { data: statusData, error: statusError } = await supabase.from('estados_solicitud').select('*').order('timestamp', { ascending: true }).limit(20000);
       if (statusError) throw statusError;
 
       const latestStatusMap: Record<string, RequestStatus> = {};
@@ -428,11 +430,10 @@ const App: React.FC = () => {
       if (currentFetchId !== fetchIdRef.current) return;
 
       if (solicitudesData) {
-        const colors = ["bg-blue-900 text-blue-300", "bg-green-900 text-green-300", "bg-indigo-900 text-indigo-300", "bg-pink-900 text-pink-300", "bg-teal-900 text-teal-300"];
         const mappedRequests = solicitudesData.map((dbReq: any) => {
           const currentStatus = latestStatusMap[dbReq.id] || 'Pendiente';
           const initials = dbReq.cliente ? dbReq.cliente.substring(0, 1).toUpperCase() : 'C';
-          const randomColor = colors[Math.floor(Math.random() * colors.length)];
+          const clientColor = getClientColor(dbReq.cliente || 'Cliente');
           const advisorName = dbReq.asesor?.nombre || 'Sin Asignar';
           const advisorInitials = advisorName !== 'Sin Asignar' ? advisorName.split(' ').map((n: string) => n[0]).join('').toUpperCase().substring(0, 2) : 'NA';
           return {
@@ -440,7 +441,7 @@ const App: React.FC = () => {
             uuid: dbReq.id,
             client: dbReq.cliente,
             clientInitials: initials,
-            clientColor: randomColor,
+            clientColor: clientColor,
             product: dbReq.producto,
             type: dbReq.tipo,
             priority: dbReq.prioridad || 'Media',

@@ -186,22 +186,3 @@ export interface VolumeStat {
   value: number;
   color: string;
 }
-
-// Productor (Designer) for workload tracking
-export interface Productor {
-  id: number;
-  board_number: BoardNumber;
-  nombre: string;
-  created_at?: string;
-}
-
-// Workload per producer for display in Solicitudes section
-export interface ProducerWorkload {
-  productor: Productor;
-  pendiente: number;
-  enProduccion: number;
-  correccion: number;
-  listo: number;
-  entregado: number;
-  total: number;
-}

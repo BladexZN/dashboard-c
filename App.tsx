@@ -15,7 +15,7 @@ import ReportsView from './components/ReportsView';
 import NewRequestModal from './components/NewRequestModal';
 import RequestDetailModal from './components/RequestDetailModal';
 
-import { RequestData, RequestStatus, Page, AuditLogEntry, Notification, DateFilter, UserProfile, User, InboxNotification, AppSettings } from './types';
+import { RequestData, RequestStatus, Page, AuditLogEntry, Notification, DateFilter, UserProfile, User, InboxNotification, AppSettings, Productor, ProducerWorkload } from './types';
 
 // Initialize security (disables console in production)
 initSecurity();
@@ -108,6 +108,7 @@ const App: React.FC = () => {
   
   // DATA STATE
   const [requests, setRequests] = useState<RequestData[]>(DEV_MODE ? DEV_REQUESTS : []);
+  const [productores, setProductores] = useState<Productor[]>([]);
   const [deletedRequests, setDeletedRequests] = useState<RequestData[]>([]);
   const [auditLogs, setAuditLogs] = useState<AuditLogEntry[]>([]);
   const [advisorsList, setAdvisorsList] = useState<User[]>(DEV_MODE ? [{ id: 'dev-user-123', name: 'Dev Tester', role: 'Diseñador', email: 'dev@test.com', avatar: '', status: 'Activo' }] : []);
@@ -392,6 +393,10 @@ const App: React.FC = () => {
       const { data: usersData, error: usersError } = await supabase.from('usuarios').select('*').limit(500);
       if (usersError) throw usersError;
 
+      // Fetch productores (designers)
+      const { data: productoresData } = await supabase.from('productores').select('*').order('board_number');
+      if (productoresData) setProductores(productoresData);
+
       const userMap = (usersData || []).reduce((acc, user) => {
         acc[user.id] = user.nombre;
         return acc;
@@ -504,6 +509,22 @@ const App: React.FC = () => {
     production: dashboardRequests.filter(r => r.status === 'En Producción' || r.status === 'Corrección').length,
     completed: dashboardRequests.filter(r => r.status === 'Listo' || r.status === 'Entregado').length,
   }), [dashboardRequests]);
+
+  // Calculate workload per producer for Solicitudes view
+  const producerWorkloads = useMemo<ProducerWorkload[]>(() => {
+    return productores.map(p => {
+      const boardRequests = requests.filter(r => r.board_number === p.board_number);
+      return {
+        productor: p,
+        pendiente: boardRequests.filter(r => r.status === 'Pendiente').length,
+        enProduccion: boardRequests.filter(r => r.status === 'En Producción').length,
+        correccion: boardRequests.filter(r => r.status === 'Corrección').length,
+        listo: boardRequests.filter(r => r.status === 'Listo').length,
+        entregado: boardRequests.filter(r => r.status === 'Entregado').length,
+        total: boardRequests.length
+      };
+    });
+  }, [productores, requests]);
 
   const filteredRequests = useMemo(() => requests.filter(req => {
     const matchesStatus = filterStatus === "Todos" || req.status === filterStatus;
@@ -708,8 +729,9 @@ const App: React.FC = () => {
         );
       case 'solicitudes':
         return (
-          <RequestsTable 
-            requests={filteredRequests} 
+          <RequestsTable
+            requests={filteredRequests}
+            producerWorkloads={producerWorkloads}
             onStatusChange={handleStatusChange}
             onNewRequest={() => setIsNewModalOpen(true)}
             onEditRequest={(req) => { setEditingRequest(req); setIsNewModalOpen(true); }}

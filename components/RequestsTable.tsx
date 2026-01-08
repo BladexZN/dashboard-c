@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useMemo, memo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { RequestData, RequestStatus } from '../types';
+import { RequestData, RequestStatus, ProducerWorkload } from '../types';
 import { springConfig, buttonTap, buttonHover } from '../lib/animations';
 import CustomSelect from './CustomSelect';
 
 interface RequestsTableProps {
   requests: RequestData[];
+  producerWorkloads: ProducerWorkload[];
   onStatusChange: (id: string, newStatus: RequestStatus) => void;
   onNewRequest: () => void;
   onEditRequest: (request: RequestData) => void;
@@ -195,8 +196,60 @@ const TableRow = memo<TableRowProps>(({
 
 TableRow.displayName = 'TableRow';
 
+// Producer workload card component
+const ProducerCard = ({ workload }: { workload: ProducerWorkload }) => {
+  const activeTotal = workload.pendiente + workload.enProduccion + workload.correccion + workload.listo;
+
+  return (
+    <motion.div
+      className="glass-card rounded-xl p-4 border border-white/10 hover:border-primary/30 transition-all"
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      whileHover={{ scale: 1.02 }}
+    >
+      <div className="flex items-center justify-between mb-3">
+        <h3 className="text-sm font-semibold text-white">{workload.productor.nombre}</h3>
+        <span className="text-[10px] text-muted-dark bg-white/5 px-2 py-0.5 rounded-full">
+          Tablero {workload.productor.board_number}
+        </span>
+      </div>
+
+      <div className="grid grid-cols-5 gap-1 text-center text-xs">
+        <div className="p-1">
+          <div className="text-yellow-500 font-bold text-lg">{workload.pendiente}</div>
+          <div className="text-muted-dark text-[10px]">Pend.</div>
+        </div>
+        <div className="p-1">
+          <div className="text-purple-400 font-bold text-lg">{workload.enProduccion}</div>
+          <div className="text-muted-dark text-[10px]">Prod.</div>
+        </div>
+        <div className="p-1">
+          <div className="text-orange-400 font-bold text-lg">{workload.correccion}</div>
+          <div className="text-muted-dark text-[10px]">Corr.</div>
+        </div>
+        <div className="p-1">
+          <div className="text-primary font-bold text-lg">{workload.listo}</div>
+          <div className="text-muted-dark text-[10px]">Listo</div>
+        </div>
+        <div className="p-1">
+          <div className="text-gray-400 font-bold text-lg">{workload.entregado}</div>
+          <div className="text-muted-dark text-[10px]">Entreg.</div>
+        </div>
+      </div>
+
+      <div className="mt-3 pt-3 border-t border-white/10 flex justify-between items-center">
+        <span className="text-[10px] text-muted-dark">Total activo:</span>
+        <span className={`text-sm font-bold ${activeTotal > 10 ? 'text-red-400' : activeTotal > 5 ? 'text-yellow-400' : 'text-green-400'}`}>
+          {activeTotal}
+        </span>
+      </div>
+    </motion.div>
+  );
+};
+
 const RequestsTable: React.FC<RequestsTableProps> = ({
   requests,
+  producerWorkloads,
   onStatusChange,
   onNewRequest,
   onEditRequest,
@@ -276,14 +329,25 @@ const RequestsTable: React.FC<RequestsTableProps> = ({
   }, []);
 
   return (
-    <motion.div
-      className="glass border border-white/10 rounded-2xl flex flex-col h-full shadow-apple"
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={springConfig.gentle}
-      onClick={(e) => e.stopPropagation()}
-    >
-      {/* Table Filters/Actions */}
+    <div className="flex flex-col gap-6">
+      {/* Producer Workload Cards */}
+      {producerWorkloads.length > 0 && (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          {producerWorkloads.map(workload => (
+            <ProducerCard key={workload.productor.id} workload={workload} />
+          ))}
+        </div>
+      )}
+
+      {/* Table Container */}
+      <motion.div
+        className="glass border border-white/10 rounded-2xl flex flex-col h-full shadow-apple"
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={springConfig.gentle}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Table Filters/Actions */}
       <div className="p-5 border-b border-white/10 flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="flex items-center space-x-2">
           <CustomSelect
@@ -424,7 +488,8 @@ const RequestsTable: React.FC<RequestsTableProps> = ({
           </div>
         )}
       </div>
-    </motion.div>
+      </motion.div>
+    </div>
   );
 };
 

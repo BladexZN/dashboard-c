@@ -561,7 +561,7 @@ const RequestDetailModal: React.FC<RequestDetailModalProps> = ({ isOpen, onClose
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ ...springConfig.gentle, delay: idx * 0.03 }}
                           >
-                            {attachment.type.startsWith('image/') ? (
+                            {attachment.type?.startsWith('image/') ? (
                               <img
                                 src={attachment.url}
                                 alt={attachment.name}
@@ -573,7 +573,7 @@ const RequestDetailModal: React.FC<RequestDetailModalProps> = ({ isOpen, onClose
                                 onClick={() => openPreview(attachment.url)}
                                 className="w-10 h-10 rounded-lg glass-light flex items-center justify-center mr-2 flex-shrink-0 cursor-pointer hover:ring-2 hover:ring-primary apple-transition"
                               >
-                                <span className="material-icons-round text-muted-dark">{getFileIcon(attachment.type)}</span>
+                                <span className="material-icons-round text-muted-dark">{getFileIcon(attachment.type || '')}</span>
                               </div>
                             )}
                             <div className="flex-1 min-w-0">

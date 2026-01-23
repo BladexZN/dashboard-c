@@ -65,92 +65,91 @@ const KanbanCard = memo<KanbanCardProps>(({
     <motion.div
       layout
       key={req.id}
-      initial={shouldAnimate ? { opacity: 0, scale: 0.9 } : false}
-      animate={{ opacity: 1, scale: 1 }}
-      exit={shouldAnimate ? { opacity: 0, scale: 0.9 } : undefined}
-      transition={shouldAnimate ? { ...springConfig.snappy, delay: idx * 0.015 } : { duration: 0.1 }}
-      whileHover={{ y: -4, scale: 1.02 }}
+      initial={shouldAnimate ? { opacity: 0, y: 10 } : false}
+      animate={{ opacity: 1, y: 0 }}
+      exit={shouldAnimate ? { opacity: 0, scale: 0.95 } : undefined}
+      transition={shouldAnimate ? springConfig.snappy : { duration: 0.1 }}
+      whileHover={{ y: -2, scale: 1.01 }}
+      whileTap={{ scale: 0.98 }}
       draggable
       onDragStart={(e) => onDragStart(e as any, req.id)}
       onDragEnd={onDragEnd}
       onClick={() => onViewDetail(req)}
       className={`
-        glass p-4 rounded-2xl border flex flex-col relative overflow-hidden group
-        ${isDragging ? 'opacity-40 scale-95 ring-2 ring-primary/50' : 'opacity-100'}
-        ${isExactMatch
-          ? 'border-primary ring-2 ring-primary shadow-apple-glow z-10'
-          : 'border-white/10 hover:border-primary/50 shadow-apple'}
-        apple-transition cursor-grab active:cursor-grabbing
+        relative p-3 rounded-xl border select-none cursor-grab active:cursor-grabbing group
+        ${isDragging
+          ? 'opacity-60 scale-[1.02] border-primary shadow-apple-glow bg-white/5 z-50 ring-1 ring-primary'
+          : 'glass border-white/10 hover:border-primary/40 hover:shadow-apple'}
+        ${isExactMatch ? 'border-primary ring-2 ring-primary shadow-apple-glow z-10' : ''}
       `}
     >
-      {/* Línea de color por TIPO DE SOLICITUD */}
-      <div className={`absolute top-0 left-0 w-1.5 h-full ${typeColors.line} opacity-90`}></div>
+      {/* Top Row: Client Label */}
+      <div className="flex justify-between items-start mb-2 relative z-10">
+        <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider truncate max-w-[180px]">
+          {req.client}
+        </span>
+        <span className="text-[10px] text-gray-600">
+          {req.id.replace('#REQ-', '')}
+        </span>
+      </div>
 
-      <div className="pl-3">
-        {/* Header con folio y prioridad */}
-        <div className="flex justify-between items-start mb-2">
-          <span className={`text-xs font-bold ${isExactMatch ? 'text-primary' : 'text-muted-dark'}`}>{req.id}</span>
-          <span className={`text-[10px] px-1.5 py-0.5 rounded-lg uppercase font-bold tracking-wider ${
-            req.priority === 'Urgente' ? 'text-red-400 bg-red-500/10 border border-red-500/20' : 'text-muted-dark bg-white/5 border border-white/10'
-          }`}>{req.priority}</span>
-        </div>
+      {/* Main Title */}
+      <h4 className="text-sm font-bold text-white mb-2 leading-snug relative z-10 line-clamp-2" title={req.product}>
+        {req.product}
+      </h4>
 
-        {/* Badge de tipo */}
-        <div className="flex flex-wrap gap-1.5 mb-3">
-          <span className={`px-1.5 py-0.5 rounded-lg text-[9px] font-bold border ${typeColors.bg} ${typeColors.text} ${typeColors.border}`}>
-            {req.type}
+      {/* Badges Row */}
+      <div className="flex flex-wrap gap-1.5 mb-2 relative z-10">
+        {/* Type Badge */}
+        <span className={`px-2 py-0.5 rounded-full text-[10px] font-medium border ${typeColors.bg} ${typeColors.text} ${typeColors.border}`}>
+          {req.type}
+        </span>
+        {/* Priority Badge - only show if high/urgent */}
+        {(req.priority === 'Alta' || req.priority === 'Urgente') && (
+          <span className="px-2 py-0.5 rounded-full text-[9px] font-bold bg-red-500/15 border border-red-500/30 text-red-400">
+            {req.priority}
           </span>
-          {req.board_number && (
-            <span className="px-1.5 py-0.5 rounded-lg text-[9px] font-bold bg-primary/10 text-primary border border-primary/30">
-              Tablero {req.board_number}
-            </span>
-          )}
+        )}
+      </div>
+
+      {/* Bottom Row: User & Date */}
+      <div className="flex items-center justify-between border-t border-white/10 pt-2 relative z-10">
+        <div className="flex items-center space-x-1.5">
+          <div className="w-5 h-5 rounded-full bg-gradient-to-br from-primary/30 to-primary/10 border border-primary/30 flex items-center justify-center text-[9px] text-primary font-bold shadow-sm">
+            {req.advisorInitials}
+          </div>
+          <span className="text-[10px] font-bold text-gray-400 truncate max-w-[70px]">
+            {req.advisor?.split(' ')[0] || ''}
+          </span>
         </div>
-
-        {/* Producto y Cliente */}
-        <h4 className="text-base font-bold text-white mb-1 leading-snug pr-2 select-none line-clamp-2" title={req.product}>{req.product}</h4>
-        <p className="text-sm text-muted-dark mb-3 truncate select-none" title={req.client}>{req.client}</p>
-
-        {/* Footer con asesor, fecha y acciones */}
-        <div className="mt-auto pt-3 border-t border-white/10 flex items-center justify-between">
-          <div className="flex items-center">
-            <div className="w-6 h-6 rounded-full bg-gray-700 text-[9px] flex items-center justify-center text-white mr-2 border-2 border-white/10 font-bold">
-              {req.advisorInitials}
-            </div>
-            <span className="text-xs text-muted-dark select-none">{req.date}</span>
+        <div className="flex items-center space-x-1">
+          <div className="bg-white/5 px-2 py-0.5 rounded-full border border-white/10">
+            <span className="text-[9px] text-gray-400">
+              {req.date}
+            </span>
           </div>
-
-          <div className="flex items-center space-x-1">
-            {/* Edit Button */}
-            <motion.button
-              onClick={(e) => { e.stopPropagation(); onEditRequest(req); }}
-              className="p-1.5 rounded-lg apple-transition text-muted-dark hover:text-primary hover:bg-primary/10 opacity-0 group-hover:opacity-100"
-              title="Editar solicitud"
-              whileHover={{ scale: 1.1 }}
-              whileTap={{ scale: 0.9 }}
-            >
-              <span className="material-icons-round text-sm">edit</span>
-            </motion.button>
-
-            {/* Delete Button with double-click confirmation */}
-            <motion.button
-              onClick={(e) => onDeleteClick(e, req)}
-              className={`
-                p-1.5 rounded-lg apple-transition
-                ${deleteConfirmId === req.id
-                  ? 'bg-red-500/20 text-red-500 ring-2 ring-red-500 scale-110'
-                  : 'text-muted-dark hover:text-red-500 hover:bg-red-500/10 opacity-0 group-hover:opacity-100'
-                }
-              `}
-              title={deleteConfirmId === req.id ? '¡Click para confirmar eliminación!' : 'Eliminar solicitud'}
-              animate={deleteConfirmId === req.id ? { scale: [1, 1.1, 1] } : {}}
-              transition={deleteConfirmId === req.id ? { repeat: Infinity, duration: 0.8 } : springConfig.snappy}
-            >
-              <span className="material-icons-round text-sm">
-                {deleteConfirmId === req.id ? 'warning' : 'delete_outline'}
-              </span>
-            </motion.button>
-          </div>
+          {/* Action buttons on hover */}
+          <motion.button
+            onClick={(e) => { e.stopPropagation(); onEditRequest(req); }}
+            className="p-1 rounded-lg apple-transition text-muted-dark hover:text-primary hover:bg-primary/10 opacity-0 group-hover:opacity-100"
+            title="Editar"
+            whileHover={{ scale: 1.1 }}
+            whileTap={{ scale: 0.9 }}
+          >
+            <span className="material-icons-round text-xs">edit</span>
+          </motion.button>
+          <motion.button
+            onClick={(e) => onDeleteClick(e, req)}
+            className={`p-1 rounded-lg apple-transition ${deleteConfirmId === req.id
+              ? 'bg-red-500/20 text-red-500 ring-1 ring-red-500'
+              : 'text-muted-dark hover:text-red-500 hover:bg-red-500/10 opacity-0 group-hover:opacity-100'
+            }`}
+            title={deleteConfirmId === req.id ? '¡Confirmar!' : 'Eliminar'}
+          >
+            <span className="material-icons-round text-xs">
+              {deleteConfirmId === req.id ? 'warning' : 'delete'}
+            </span>
+          </motion.button>
         </div>
       </div>
     </motion.div>

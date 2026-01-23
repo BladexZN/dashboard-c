@@ -11,7 +11,7 @@ interface ProductionKanbanProps {
   onDelete: (request: RequestData) => void;
 }
 
-const SECTIONS: RequestStatus[] = ['Pendiente', 'En Producción', 'Corrección', 'Listo', 'Entregado'];
+const SECTIONS: RequestStatus[] = ['Pendiente', 'En Producción', 'Corrección', 'Entregado'];
 const ITEMS_PER_SECTION = 12;
 const MAX_ANIMATED_ITEMS = 8;
 
@@ -129,7 +129,6 @@ const ProductionKanban: React.FC<ProductionKanbanProps> = ({ requests, onStatusC
     'Pendiente': ITEMS_PER_SECTION,
     'En Producción': ITEMS_PER_SECTION,
     'Corrección': ITEMS_PER_SECTION,
-    'Listo': ITEMS_PER_SECTION,
     'Entregado': ITEMS_PER_SECTION
   });
 
@@ -281,7 +280,7 @@ const ProductionKanban: React.FC<ProductionKanbanProps> = ({ requests, onStatusC
               >
                 {/* Section Header */}
                 <div className="flex items-center space-x-3 border-b border-white/10 pb-3">
-                  <div className={`w-3 h-3 rounded-full ${status === 'Listo' ? 'bg-primary' : status === 'En Producción' ? 'bg-purple-500' : status === 'Corrección' ? 'bg-orange-500' : 'bg-gray-500'}`}></div>
+                  <div className={`w-3 h-3 rounded-full ${status === 'Entregado' ? 'bg-green-500' : status === 'En Producción' ? 'bg-purple-500' : status === 'Corrección' ? 'bg-orange-500' : status === 'Pendiente' ? 'bg-yellow-500' : 'bg-gray-500'}`}></div>
                   <h3 className="text-xl font-bold text-text-light dark:text-white">{status}</h3>
                   <span className="px-2.5 py-0.5 rounded-full text-xs font-medium glass-light border border-white/10 text-text-light dark:text-muted-dark">
                     {sectionRequests.length}

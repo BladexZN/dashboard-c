@@ -48,7 +48,7 @@ const ReportsView: React.FC<ReportsViewProps> = ({ requests, history, dateFilter
 
       const createdTime = req.rawDate;
       const prodEvent = reqHistory.find(h => h.status === 'En Producción');
-      const listoEvent = reqHistory.find(h => h.status === 'Listo');
+      const listoEvent = reqHistory.find(h => h.status === 'Entregado');
       const deliveredEvent = reqHistory.find(h => h.status === 'Entregado');
 
       const timeToProd = prodEvent ? calculateDuration(createdTime, prodEvent.timestamp) : null;
@@ -104,7 +104,7 @@ const ReportsView: React.FC<ReportsViewProps> = ({ requests, history, dateFilter
   // --- CHARTS DATA ---
   const statusDistData = useMemo(() => {
     const counts: Record<string, number> = {
-      'Pendiente': 0, 'En Producción': 0, 'Corrección': 0, 'Listo': 0, 'Entregado': 0
+      'Pendiente': 0, 'En Producción': 0, 'Corrección': 0, 'Entregado': 0
     };
     processedData.forEach(r => {
       if (counts[r.status] !== undefined) counts[r.status]++;
@@ -116,8 +116,7 @@ const ReportsView: React.FC<ReportsViewProps> = ({ requests, history, dateFilter
     'Pendiente': '#EAB308',
     'En Producción': '#A855F7',
     'Corrección': '#F97316',
-    'Listo': '#007AFF',
-    'Entregado': '#3B82F6'
+    'Entregado': '#22C55E'
   };
 
   const trendData = useMemo(() => {
@@ -183,10 +182,10 @@ const ReportsView: React.FC<ReportsViewProps> = ({ requests, history, dateFilter
 
   const advisors = useMemo(() => ['Todos', ...Array.from(new Set(processedData.map(r => r.advisor)))], [processedData]);
   const types = useMemo(() => ['Todos', ...Array.from(new Set(processedData.map(r => r.type)))], [processedData]);
-  const statuses = ['Todos', 'Pendiente', 'En Producción', 'Corrección', 'Listo', 'Entregado'];
+  const statuses = ['Todos', 'Pendiente', 'En Producción', 'Corrección', 'Entregado'];
 
   const handleExportCSV = () => {
-    const headers = ["Folio", "Cliente", "Servicio", "Tipo", "Asesor", "Estado Actual", "Fecha Creación", "Tiempo a Listo (h)", "Correcciones"];
+    const headers = ["Folio", "Cliente", "Servicio", "Tipo", "Asesor", "Estado Actual", "Fecha Creación", "Tiempo a Entrega (h)", "Correcciones"];
     const rows = filteredDetailedData.map(r => [r.id, r.client, r.product, r.type, r.advisor, r.status, r.date, r.timeToListo ? r.timeToListo.toFixed(1) : '', r.correctionCount]);
     const csvContent = "data:text/csv;charset=utf-8," + [headers.join(','), ...rows.map(e => e.join(','))].join('\n');
     const encodedUri = encodeURI(csvContent);
@@ -246,9 +245,8 @@ const ReportsView: React.FC<ReportsViewProps> = ({ requests, history, dateFilter
              [
               { title: "Total Solicitudes", value: kpis.total, icon: "functions", color: "text-blue-500" },
               { title: "Tiempo a Prod.", value: kpis.avgToProd, icon: "timer", color: "text-purple-500" },
-              { title: "Tiempo a Listo", value: kpis.avgToListo, icon: "check_circle", color: "text-primary" },
-              { title: "Tiempo a Entrega", value: kpis.avgToDeliver, icon: "local_shipping", color: "text-teal-500" },
-              { title: "% Listo en 24h", value: kpis.percentQuick, icon: "bolt", color: "text-yellow-500" },
+              { title: "Tiempo a Entrega", value: kpis.avgToListo, icon: "check_circle", color: "text-green-500" },
+              { title: "% Entregado en 24h", value: kpis.percentQuick, icon: "bolt", color: "text-yellow-500" },
               { title: "% Con Corrección", value: kpis.percentCorrection, icon: "build", color: "text-orange-500" },
              ].map((kpi, idx) => (
                <motion.div
@@ -375,7 +373,7 @@ const ReportsView: React.FC<ReportsViewProps> = ({ requests, history, dateFilter
                    <tr className="text-muted-dark border-b border-white/10">
                       <th className="px-5 py-3 font-medium">Servicio</th>
                       <th className="px-5 py-3 font-medium text-right">Total</th>
-                      <th className="px-5 py-3 font-medium text-right">Prom. a Listo</th>
+                      <th className="px-5 py-3 font-medium text-right">Prom. a Entrega</th>
                    </tr>
                 </thead>
                 <tbody className="divide-y divide-white/10">
@@ -413,7 +411,7 @@ const ReportsView: React.FC<ReportsViewProps> = ({ requests, history, dateFilter
                       <th className="px-5 py-3 font-medium">Asesor</th>
                       <th className="px-5 py-3 font-medium text-right">Total</th>
                       <th className="px-5 py-3 font-medium text-right">% Corr.</th>
-                      <th className="px-5 py-3 font-medium text-right">Prom. a Listo</th>
+                      <th className="px-5 py-3 font-medium text-right">Prom. a Entrega</th>
                    </tr>
                 </thead>
                 <tbody className="divide-y divide-white/10">
@@ -481,7 +479,7 @@ const ReportsView: React.FC<ReportsViewProps> = ({ requests, history, dateFilter
                       <th className="px-5 py-3 font-medium">Tipo</th>
                       <th className="px-5 py-3 font-medium">Estado</th>
                       <th className="px-5 py-3 font-medium">Asesor</th>
-                      <th className="px-5 py-3 font-medium text-right">Tiempo a Listo</th>
+                      <th className="px-5 py-3 font-medium text-right">Tiempo a Entrega</th>
                       <th className="px-5 py-3 font-medium text-center">Correcciones</th>
                    </tr>
                 </thead>
@@ -504,7 +502,7 @@ const ReportsView: React.FC<ReportsViewProps> = ({ requests, history, dateFilter
                             <td className="px-5 py-3 text-text-light dark:text-gray-300 truncate max-w-[150px]">{r.product}</td>
                             <td className="px-5 py-3 text-muted-light dark:text-muted-dark">{r.type}</td>
                             <td className="px-5 py-3">
-                               <span className={`inline-flex items-center px-2 py-0.5 rounded-lg text-[10px] font-bold border ${r.status === 'Listo' ? 'bg-primary/10 text-primary border-primary/20' : r.status === 'Corrección' ? 'bg-orange-500/10 text-orange-500 border-orange-500/20' : 'bg-gray-500/10 text-gray-400 border-gray-500/20'}`}>{r.status}</span>
+                               <span className={`inline-flex items-center px-2 py-0.5 rounded-lg text-[10px] font-bold border ${r.status === 'Entregado' ? 'bg-green-500/10 text-green-400 border-green-500/20' : r.status === 'Corrección' ? 'bg-orange-500/10 text-orange-500 border-orange-500/20' : 'bg-gray-500/10 text-gray-400 border-gray-500/20'}`}>{r.status}</span>
                             </td>
                             <td className="px-5 py-3 text-text-light dark:text-gray-300">{r.advisor}</td>
                             <td className="px-5 py-3 text-right text-text-light dark:text-gray-400">{r.timeToListo !== null ? formatDuration(r.timeToListo) : '—'}</td>

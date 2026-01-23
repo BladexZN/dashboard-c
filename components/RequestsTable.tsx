@@ -20,7 +20,7 @@ interface RequestsTableProps {
   onDelete: (request: RequestData) => void;
 }
 
-const STATUS_OPTIONS: RequestStatus[] = ['Pendiente', 'En Producción', 'Listo', 'Entregado', 'Corrección'];
+const STATUS_OPTIONS: RequestStatus[] = ['Pendiente', 'En Producción', 'Entregado', 'Corrección'];
 const ITEMS_PER_PAGE = 25;
 const MAX_ANIMATED_ROWS = 10;
 
@@ -84,8 +84,7 @@ const TableRow = memo<TableRowProps>(({
           ${req.status === 'Pendiente' ? 'bg-yellow-500/10 text-yellow-500 border-yellow-500/20' : ''}
           ${req.status === 'En Producción' ? 'bg-purple-500/10 text-purple-400 border-purple-500/20' : ''}
           ${req.status === 'Corrección' ? 'bg-orange-500/10 text-orange-400 border-orange-500/20' : ''}
-          ${req.status === 'Listo' ? 'bg-primary/10 text-primary border-primary/20' : ''}
-          ${req.status === 'Entregado' ? 'bg-gray-500/10 text-gray-400 border-gray-500/20' : ''}
+          ${req.status === 'Entregado' ? 'bg-green-500/10 text-green-400 border-green-500/20' : ''}
         `}
           whileHover={{ scale: 1.05 }}
           whileTap={{ scale: 0.95 }}
@@ -93,7 +92,6 @@ const TableRow = memo<TableRowProps>(({
           {req.status === 'Pendiente' && <span className="w-1.5 h-1.5 bg-yellow-500 rounded-full mr-1.5"></span>}
           {req.status === 'En Producción' && <span className="w-1.5 h-1.5 bg-purple-400 rounded-full mr-1.5 animate-pulse"></span>}
           {req.status === 'Corrección' && <span className="material-icons-round text-[10px] mr-1">edit</span>}
-          {req.status === 'Listo' && <span className="material-icons-round text-[10px] mr-1">check</span>}
           {req.status === 'Entregado' && <span className="material-icons-round text-[10px] mr-1">done_all</span>}
           {req.status}
         </motion.button>

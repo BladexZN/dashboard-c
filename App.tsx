@@ -455,7 +455,10 @@ const App: React.FC = () => {
             escaleta: dbReq.escaleta_video,
             downloadable_links: dbReq.material_descargable || [],
             attachments: dbReq.attachments || [],
-            final_design: dbReq.final_design || null
+            final_design: dbReq.final_design || null,
+            final_designs: (dbReq.final_designs && Array.isArray(dbReq.final_designs) && dbReq.final_designs.length > 0)
+              ? dbReq.final_designs
+              : (dbReq.final_design ? [dbReq.final_design] : [])
           } as RequestData;
         });
         setRequests(mappedRequests);
@@ -501,7 +504,7 @@ const App: React.FC = () => {
   const dashboardStats = useMemo(() => ({
     total: dashboardRequests.length,
     pending: dashboardRequests.filter(r => r.status === 'Pendiente').length,
-    production: dashboardRequests.filter(r => r.status === 'En Producción' || r.status === 'Corrección').length,
+    production: dashboardRequests.filter(r => r.status === 'En Producción' || r.status === 'Revisión' || r.status === 'Corrección').length,
     completed: dashboardRequests.filter(r => r.status === 'Entregado').length,
   }), [dashboardRequests]);
 
@@ -563,6 +566,7 @@ const App: React.FC = () => {
         deleted_by: userProfile.id,
         attachments: [],
         final_design: null,
+        final_designs: [],
         material_descargable: []
       }).eq('id', request.uuid);
       if (error) throw error;
@@ -586,7 +590,7 @@ const App: React.FC = () => {
     }
   };
 
-  const handleStatusChange = async (id: string, newStatus: RequestStatus) => {
+  const handleStatusChange = async (id: string, newStatus: RequestStatus, nota?: string) => {
     const req = requests.find(r => r.id === id);
     if (!req) return;
     const internalId = req.uuid;
@@ -594,7 +598,7 @@ const App: React.FC = () => {
     const previousRequests = [...requests];
     setRequests(prev => prev.map(r => r.id === id ? { ...r, status: newStatus } : r));
     try {
-      const { error } = await supabase.from('estados_solicitud').insert([{ solicitud_id: internalId, estado: newStatus, usuario_id: userProfile?.id, timestamp: new Date().toISOString() }]);
+      const { error } = await supabase.from('estados_solicitud').insert([{ solicitud_id: internalId, estado: newStatus, usuario_id: userProfile?.id, timestamp: new Date().toISOString(), nota: nota || null }]);
       if (error) throw error;
 
       // Update completed_at when status changes to 'Entregado' (for auto-archive after 30 days)
@@ -607,7 +611,7 @@ const App: React.FC = () => {
       }
 
       // Send cross-project notification to Dashboard A for Corrección or Entregado status
-      if ((newStatus === 'Corrección' || newStatus === 'Entregado') && req.created_by_user_id) {
+      if ((newStatus === 'Revisión' || newStatus === 'Corrección' || newStatus === 'Entregado') && req.created_by_user_id) {
         try {
           // Get the email of the original creator
           const { data: creatorData } = await supabase.from('usuarios').select('email').eq('id', req.created_by_user_id).single();
@@ -617,9 +621,10 @@ const App: React.FC = () => {
                 user_email: creatorData.email,
                 request_id: req.id,
                 request_uuid: internalId,
-                type: newStatus === 'Corrección' ? 'correction' : 'ready',
+                type: newStatus === 'Corrección' ? 'correction' : newStatus === 'Revisión' ? 'review' : 'ready',
                 product_name: req.product,
-                dashboard_source: 'design'
+                dashboard_source: 'design',
+                correction_note: nota || null
               }
             });
           }

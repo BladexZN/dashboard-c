@@ -104,7 +104,7 @@ const ReportsView: React.FC<ReportsViewProps> = ({ requests, history, dateFilter
   // --- CHARTS DATA ---
   const statusDistData = useMemo(() => {
     const counts: Record<string, number> = {
-      'Pendiente': 0, 'En Producción': 0, 'Corrección': 0, 'Entregado': 0
+      'Pendiente': 0, 'En Producción': 0, 'Revisión': 0, 'Corrección': 0, 'Entregado': 0
     };
     processedData.forEach(r => {
       if (counts[r.status] !== undefined) counts[r.status]++;
@@ -115,6 +115,7 @@ const ReportsView: React.FC<ReportsViewProps> = ({ requests, history, dateFilter
   const STATUS_COLORS: Record<string, string> = {
     'Pendiente': '#EAB308',
     'En Producción': '#A855F7',
+    'Revisión': '#06B6D4',
     'Corrección': '#F97316',
     'Entregado': '#22C55E'
   };
@@ -182,7 +183,7 @@ const ReportsView: React.FC<ReportsViewProps> = ({ requests, history, dateFilter
 
   const advisors = useMemo(() => ['Todos', ...Array.from(new Set(processedData.map(r => r.advisor)))], [processedData]);
   const types = useMemo(() => ['Todos', ...Array.from(new Set(processedData.map(r => r.type)))], [processedData]);
-  const statuses = ['Todos', 'Pendiente', 'En Producción', 'Corrección', 'Entregado'];
+  const statuses = ['Todos', 'Pendiente', 'En Producción', 'Revisión', 'Corrección', 'Entregado'];
 
   const handleExportCSV = () => {
     const headers = ["Folio", "Cliente", "Servicio", "Tipo", "Asesor", "Estado Actual", "Fecha Creación", "Tiempo a Entrega (h)", "Correcciones"];
@@ -502,7 +503,7 @@ const ReportsView: React.FC<ReportsViewProps> = ({ requests, history, dateFilter
                             <td className="px-5 py-3 text-text-light dark:text-gray-300 truncate max-w-[150px]">{r.product}</td>
                             <td className="px-5 py-3 text-muted-light dark:text-muted-dark">{r.type}</td>
                             <td className="px-5 py-3">
-                               <span className={`inline-flex items-center px-2 py-0.5 rounded-lg text-[10px] font-bold border ${r.status === 'Entregado' ? 'bg-green-500/10 text-green-400 border-green-500/20' : r.status === 'Corrección' ? 'bg-orange-500/10 text-orange-500 border-orange-500/20' : 'bg-gray-500/10 text-gray-400 border-gray-500/20'}`}>{r.status}</span>
+                               <span className={`inline-flex items-center px-2 py-0.5 rounded-lg text-[10px] font-bold border ${r.status === 'Entregado' ? 'bg-green-500/10 text-green-400 border-green-500/20' : r.status === 'Revisión' ? 'bg-cyan-500/10 text-cyan-400 border-cyan-500/20' : r.status === 'Corrección' ? 'bg-orange-500/10 text-orange-500 border-orange-500/20' : 'bg-gray-500/10 text-gray-400 border-gray-500/20'}`}>{r.status}</span>
                             </td>
                             <td className="px-5 py-3 text-text-light dark:text-gray-300">{r.advisor}</td>
                             <td className="px-5 py-3 text-right text-text-light dark:text-gray-400">{r.timeToListo !== null ? formatDuration(r.timeToListo) : '—'}</td>

@@ -1,5 +1,5 @@
 
-export type RequestStatus = 'Pendiente' | 'En Producción' | 'Entregado' | 'Corrección';
+export type RequestStatus = 'Pendiente' | 'En Producción' | 'Revisión' | 'Corrección' | 'Entregado';
 export type RequestPriority = 'Alta' | 'Media' | 'Baja' | 'Urgente';
 export type RequestType = 'Nueva solicitud' | 'Corrección/Añadido' | 'Ajuste';
 
@@ -51,8 +51,10 @@ export interface RequestData {
   downloadable_links?: string[];
   // Attachments (reference images, inspiration)
   attachments?: Attachment[];
-  // Final design file
+  // Final design file (legacy single)
   final_design?: FinalDesign | null;
+  // Multiple final designs
+  final_designs?: FinalDesign[];
   // Board number for designer assignment
   board_number?: BoardNumber;
   completed_at?: string;

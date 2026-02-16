@@ -2,17 +2,18 @@ import React, { useState, useMemo, useCallback, memo, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { RequestData, RequestStatus, RequestType } from '../types';
 import { springConfig, buttonTap } from '../lib/animations';
+import CorrectionCommentModal from './CorrectionCommentModal';
 
 interface ProductionKanbanProps {
   requests: RequestData[];
-  onStatusChange: (id: string, status: RequestStatus) => void;
+  onStatusChange: (id: string, status: RequestStatus, nota?: string) => void;
   onViewDetail: (request: RequestData) => void;
   onEditRequest: (request: RequestData) => void;
   onDelete: (request: RequestData) => void;
   loading?: boolean;
 }
 
-const COLUMNS: RequestStatus[] = ['Pendiente', 'En Producción', 'Corrección', 'Entregado'];
+const COLUMNS: RequestStatus[] = ['Pendiente', 'En Producción', 'Revisión', 'Corrección', 'Entregado'];
 const ITEMS_PER_COLUMN = 12;
 const LOAD_MORE_INCREMENT = 12;
 const MAX_ANIMATED_ITEMS = 8;
@@ -31,6 +32,8 @@ const getColumnStyles = (status: RequestStatus) => {
       return { bg: 'bg-yellow-500/5', border: 'border-yellow-500/20', header: 'bg-yellow-500/10', dot: 'bg-yellow-500' };
     case 'En Producción':
       return { bg: 'bg-purple-500/5', border: 'border-purple-500/20', header: 'bg-purple-500/10', dot: 'bg-purple-500' };
+    case 'Revisión':
+      return { bg: 'bg-cyan-500/5', border: 'border-cyan-500/20', header: 'bg-cyan-500/10', dot: 'bg-cyan-500' };
     case 'Corrección':
       return { bg: 'bg-orange-500/5', border: 'border-orange-500/20', header: 'bg-orange-500/10', dot: 'bg-orange-500' };
     case 'Entregado':
@@ -165,11 +168,14 @@ const ProductionKanban: React.FC<ProductionKanbanProps> = ({ requests, onStatusC
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [deleteTimeoutId, setDeleteTimeoutId] = useState<NodeJS.Timeout | null>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const [correctionModalOpen, setCorrectionModalOpen] = useState(false);
+  const [pendingCorrectionId, setPendingCorrectionId] = useState<string | null>(null);
 
   // Track how many items to show per column
   const [columnLimits, setColumnLimits] = useState<Record<RequestStatus, number>>({
     'Pendiente': ITEMS_PER_COLUMN,
     'En Producción': ITEMS_PER_COLUMN,
+    'Revisión': ITEMS_PER_COLUMN,
     'Corrección': ITEMS_PER_COLUMN,
     'Entregado': ITEMS_PER_COLUMN,
   });
@@ -212,12 +218,30 @@ const ProductionKanban: React.FC<ProductionKanbanProps> = ({ requests, onStatusC
     const id = e.dataTransfer.getData("text/plain");
 
     if (id) {
-      onStatusChange(id, status);
+      if (status === 'Corrección') {
+        setPendingCorrectionId(id);
+        setCorrectionModalOpen(true);
+      } else {
+        onStatusChange(id, status);
+      }
     }
 
     setDraggedRequestId(null);
     setActiveDropZone(null);
   }, [onStatusChange]);
+
+  const handleCorrectionConfirm = useCallback((nota: string) => {
+    if (pendingCorrectionId) {
+      onStatusChange(pendingCorrectionId, 'Corrección', nota);
+    }
+    setCorrectionModalOpen(false);
+    setPendingCorrectionId(null);
+  }, [pendingCorrectionId, onStatusChange]);
+
+  const handleCorrectionCancel = useCallback(() => {
+    setCorrectionModalOpen(false);
+    setPendingCorrectionId(null);
+  }, []);
 
   const handleDeleteClick = useCallback((e: React.MouseEvent, req: RequestData) => {
     e.stopPropagation();
@@ -358,7 +382,7 @@ const ProductionKanban: React.FC<ProductionKanbanProps> = ({ requests, onStatusC
           className="flex-1 overflow-x-auto overflow-y-hidden pb-4"
         >
           {/* Contenedor horizontal de columnas */}
-          <div className="flex h-full gap-5 min-w-[1400px] px-1">
+          <div className="flex h-full gap-5 min-w-[1700px] px-1">
             {COLUMNS.map((status, colIdx) => {
               const allColumnRequests = processedRequests.filter(r => r.status === status);
               const currentLimit = columnLimits[status];
@@ -462,6 +486,11 @@ const ProductionKanban: React.FC<ProductionKanbanProps> = ({ requests, onStatusC
           </div>
         </div>
       )}
+      <CorrectionCommentModal
+        isOpen={correctionModalOpen}
+        onConfirm={handleCorrectionConfirm}
+        onCancel={handleCorrectionCancel}
+      />
     </motion.div>
   );
 };

@@ -31,7 +31,10 @@ const NewRequestModal: React.FC<NewRequestModalProps> = ({ isOpen, onClose, onSa
     attachments: [] as Attachment[]
   });
 
+  // Only reset form when modal opens or initialData changes — NOT when currentUser updates
+  // (currentUser updating mid-form caused the bug where switching tabs erased form data)
   useEffect(() => {
+    if (!isOpen) return;
     if (initialData) {
       setFormData({
         client: initialData.client || '',
@@ -59,7 +62,8 @@ const NewRequestModal: React.FC<NewRequestModalProps> = ({ isOpen, onClose, onSa
         attachments: []
       });
     }
-  }, [initialData, isOpen, currentUser]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialData, isOpen]);
 
   const handleLinkChange = (index: number, value: string) => {
     const newLinks = [...formData.downloadable_links];

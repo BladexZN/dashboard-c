@@ -3,10 +3,11 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { RequestData, RequestStatus } from '../types';
 import { springConfig, buttonTap, buttonHover } from '../lib/animations';
 import CustomSelect from './CustomSelect';
+import CorrectionCommentModal from './CorrectionCommentModal';
 
 interface RequestsTableProps {
   requests: RequestData[];
-  onStatusChange: (id: string, newStatus: RequestStatus) => void;
+  onStatusChange: (id: string, newStatus: RequestStatus, nota?: string) => void;
   onNewRequest: () => void;
   onEditRequest: (request: RequestData) => void;
   onRowClick: (request: RequestData) => void;
@@ -20,7 +21,7 @@ interface RequestsTableProps {
   onDelete: (request: RequestData) => void;
 }
 
-const STATUS_OPTIONS: RequestStatus[] = ['Pendiente', 'En Producción', 'Entregado', 'Corrección'];
+const STATUS_OPTIONS: RequestStatus[] = ['Pendiente', 'En Producción', 'Revisión', 'Corrección', 'Entregado'];
 const ITEMS_PER_PAGE = 25;
 const MAX_ANIMATED_ROWS = 10;
 
@@ -83,6 +84,7 @@ const TableRow = memo<TableRowProps>(({
           className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border apple-transition
           ${req.status === 'Pendiente' ? 'bg-yellow-500/10 text-yellow-500 border-yellow-500/20' : ''}
           ${req.status === 'En Producción' ? 'bg-purple-500/10 text-purple-400 border-purple-500/20' : ''}
+          ${req.status === 'Revisión' ? 'bg-cyan-500/10 text-cyan-400 border-cyan-500/20' : ''}
           ${req.status === 'Corrección' ? 'bg-orange-500/10 text-orange-400 border-orange-500/20' : ''}
           ${req.status === 'Entregado' ? 'bg-green-500/10 text-green-400 border-green-500/20' : ''}
         `}
@@ -91,6 +93,7 @@ const TableRow = memo<TableRowProps>(({
         >
           {req.status === 'Pendiente' && <span className="w-1.5 h-1.5 bg-yellow-500 rounded-full mr-1.5"></span>}
           {req.status === 'En Producción' && <span className="w-1.5 h-1.5 bg-purple-400 rounded-full mr-1.5 animate-pulse"></span>}
+          {req.status === 'Revisión' && <span className="material-icons-round text-[10px] mr-1">visibility</span>}
           {req.status === 'Corrección' && <span className="material-icons-round text-[10px] mr-1">edit</span>}
           {req.status === 'Entregado' && <span className="material-icons-round text-[10px] mr-1">done_all</span>}
           {req.status}
@@ -211,6 +214,8 @@ const RequestsTable: React.FC<RequestsTableProps> = ({
   const [openStatusDropdown, setOpenStatusDropdown] = useState<string | null>(null);
   const [deleteArmedId, setDeleteArmedId] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
+  const [correctionModalOpen, setCorrectionModalOpen] = useState(false);
+  const [pendingCorrectionId, setPendingCorrectionId] = useState<string | null>(null);
 
   // Reset to page 1 when requests change (e.g., filter applied)
   useEffect(() => {
@@ -247,8 +252,14 @@ const RequestsTable: React.FC<RequestsTableProps> = ({
 
   const handleStatusSelect = (e: React.MouseEvent, id: string, status: RequestStatus) => {
     e.stopPropagation();
-    onStatusChange(id, status);
-    setOpenStatusDropdown(null);
+    if (status === 'Corrección') {
+      setPendingCorrectionId(id);
+      setCorrectionModalOpen(true);
+      setOpenStatusDropdown(null);
+    } else {
+      onStatusChange(id, status);
+      setOpenStatusDropdown(null);
+    }
   };
 
   const handleDeleteClick = (e: React.MouseEvent, request: RequestData) => {
@@ -422,6 +433,20 @@ const RequestsTable: React.FC<RequestsTableProps> = ({
           </div>
         )}
       </div>
+      <CorrectionCommentModal
+        isOpen={correctionModalOpen}
+        onConfirm={(nota) => {
+          if (pendingCorrectionId) {
+            onStatusChange(pendingCorrectionId, 'Corrección', nota);
+          }
+          setCorrectionModalOpen(false);
+          setPendingCorrectionId(null);
+        }}
+        onCancel={() => {
+          setCorrectionModalOpen(false);
+          setPendingCorrectionId(null);
+        }}
+      />
     </motion.div>
   );
 };

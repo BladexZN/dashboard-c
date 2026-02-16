@@ -23,6 +23,7 @@ interface DetailState {
   material_descargable: string[];
   attachments: Attachment[];
   final_design: FinalDesign | null;
+  final_designs: FinalDesign[];
   status: string;
   clientColor?: string;
   clientInitials?: string;
@@ -92,6 +93,9 @@ const RequestDetailModal: React.FC<RequestDetailModalProps> = ({ isOpen, onClose
           material_descargable: solData.material_descargable || [],
           attachments: solData.attachments || [],
           final_design: solData.final_design || null,
+          final_designs: (solData.final_designs && Array.isArray(solData.final_designs) && solData.final_designs.length > 0)
+            ? solData.final_designs
+            : (solData.final_design ? [solData.final_design] : []),
           status: histData && histData.length > 0 ? histData[histData.length - 1].estado : 'Pendiente',
           clientColor,
           clientInitials: initials,
@@ -207,12 +211,6 @@ const RequestDetailModal: React.FC<RequestDetailModalProps> = ({ isOpen, onClose
     const filePath = `final-designs/${fileName}`;
 
     try {
-      if (details.final_design) {
-        const oldUrlParts = details.final_design.url.split('/');
-        const oldPath = `final-designs/${oldUrlParts[oldUrlParts.length - 1]}`;
-        await supabase.storage.from('design-attachments').remove([oldPath]);
-      }
-
       const { error } = await supabase.storage
         .from('design-attachments')
         .upload(filePath, file);
@@ -227,7 +225,7 @@ const RequestDetailModal: React.FC<RequestDetailModalProps> = ({ isOpen, onClose
         .from('design-attachments')
         .getPublicUrl(filePath);
 
-      const finalDesign: FinalDesign = {
+      const newDesign: FinalDesign = {
         id: Date.now().toString(),
         name: file.name,
         url: urlData.publicUrl,
@@ -236,13 +234,15 @@ const RequestDetailModal: React.FC<RequestDetailModalProps> = ({ isOpen, onClose
         uploaded_at: new Date().toISOString()
       };
 
+      const newDesigns = [...(details.final_designs || []), newDesign];
+
       const { error: updateError } = await supabase
         .from('solicitudes')
-        .update({ final_design: finalDesign })
+        .update({ final_designs: newDesigns, final_design: newDesign })
         .eq('id', details.solicitudId);
 
       if (!updateError) {
-        setDetails({ ...details, final_design: finalDesign });
+        setDetails({ ...details, final_designs: newDesigns, final_design: newDesign });
         onRefresh?.();
       }
     } catch (err) {
@@ -253,10 +253,10 @@ const RequestDetailModal: React.FC<RequestDetailModalProps> = ({ isOpen, onClose
     if (finalDesignInputRef.current) finalDesignInputRef.current.value = '';
   };
 
-  const removeFinalDesign = async () => {
-    if (!details?.solicitudId || !details.final_design) return;
+  const removeFinalDesign = async (designToRemove: FinalDesign) => {
+    if (!details?.solicitudId) return;
 
-    const urlParts = details.final_design.url.split('/');
+    const urlParts = designToRemove.url.split('/');
     const filePath = `final-designs/${urlParts[urlParts.length - 1]}`;
 
     try {
@@ -265,13 +265,16 @@ const RequestDetailModal: React.FC<RequestDetailModalProps> = ({ isOpen, onClose
       console.error('Error deleting file:', err);
     }
 
+    const newDesigns = (details.final_designs || []).filter(d => d.id !== designToRemove.id);
+    const newSingleDesign = newDesigns.length > 0 ? newDesigns[newDesigns.length - 1] : null;
+
     const { error } = await supabase
       .from('solicitudes')
-      .update({ final_design: null })
+      .update({ final_designs: newDesigns, final_design: newSingleDesign })
       .eq('id', details.solicitudId);
 
     if (!error) {
-      setDetails({ ...details, final_design: null });
+      setDetails({ ...details, final_designs: newDesigns, final_design: newSingleDesign });
       onRefresh?.();
     }
   };
@@ -294,6 +297,7 @@ const RequestDetailModal: React.FC<RequestDetailModalProps> = ({ isOpen, onClose
     switch (status) {
       case 'Pendiente': return 'bg-yellow-500 border-yellow-500';
       case 'En Producción': return 'bg-purple-500 border-purple-500';
+      case 'Revisión': return 'bg-cyan-500 border-cyan-500';
       case 'Corrección': return 'bg-orange-500 border-orange-500';
       case 'Entregado': return 'bg-green-500 border-green-500';
       default: return 'bg-gray-500 border-gray-500';
@@ -412,7 +416,7 @@ const RequestDetailModal: React.FC<RequestDetailModalProps> = ({ isOpen, onClose
                     </div>
                   </motion.div>
 
-                  {/* Final Design Section */}
+                  {/* Final Designs Section */}
                   <motion.div
                     className="bg-gradient-to-r from-primary/10 to-green-500/10 rounded-2xl p-4 border-2 border-primary/30"
                     initial={{ opacity: 0, y: 10 }}
@@ -422,7 +426,12 @@ const RequestDetailModal: React.FC<RequestDetailModalProps> = ({ isOpen, onClose
                     <div className="flex items-center justify-between mb-3">
                       <div className="flex items-center">
                         <span className="material-icons-round text-primary mr-2">auto_awesome</span>
-                        <h3 className="text-sm font-bold text-text-light dark:text-white">Diseño Final</h3>
+                        <h3 className="text-sm font-bold text-text-light dark:text-white">
+                          Diseños Finales
+                          {details.final_designs.length > 0 && (
+                            <span className="ml-2 text-xs font-normal text-muted-dark">({details.final_designs.length})</span>
+                          )}
+                        </h3>
                       </div>
                       <input
                         ref={finalDesignInputRef}
@@ -431,82 +440,81 @@ const RequestDetailModal: React.FC<RequestDetailModalProps> = ({ isOpen, onClose
                         onChange={handleFinalDesignUpload}
                         className="hidden"
                       />
-                      {!details.final_design && (
-                        <motion.button
-                          onClick={() => finalDesignInputRef.current?.click()}
-                          disabled={uploadingFinal}
-                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-primary text-white hover:bg-primary-dark apple-transition text-xs font-medium disabled:opacity-50 shadow-apple-glow"
-                          whileHover={buttonHover}
-                          whileTap={buttonTap}
-                        >
-                          <span className="material-icons-round text-sm">{uploadingFinal ? 'hourglass_empty' : 'upload'}</span>
-                          {uploadingFinal ? 'Subiendo...' : 'Subir Diseño Final'}
-                        </motion.button>
-                      )}
+                      <motion.button
+                        onClick={() => finalDesignInputRef.current?.click()}
+                        disabled={uploadingFinal}
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-primary text-white hover:bg-primary-dark apple-transition text-xs font-medium disabled:opacity-50 shadow-apple-glow"
+                        whileHover={buttonHover}
+                        whileTap={buttonTap}
+                      >
+                        <span className="material-icons-round text-sm">{uploadingFinal ? 'hourglass_empty' : 'upload'}</span>
+                        {uploadingFinal ? 'Subiendo...' : 'Subir Diseño'}
+                      </motion.button>
                     </div>
 
-                    {details.final_design ? (
-                      <div className="glass rounded-xl p-3 border border-white/10">
-                        <div className="flex items-center">
-                          {details.final_design.type.startsWith('image/') ? (
-                            <img
-                              src={details.final_design.url}
-                              alt={details.final_design.name}
-                              onClick={() => openPreview(details.final_design!.url)}
-                              className="w-16 h-16 rounded-xl object-cover mr-3 border border-white/10 cursor-pointer hover:opacity-80 hover:ring-2 hover:ring-primary apple-transition"
-                              title="Click para ver preview"
-                            />
-                          ) : (
-                            <div
-                              onClick={() => openPreview(details.final_design!.url)}
-                              className="w-16 h-16 rounded-xl glass-light flex items-center justify-center mr-3 cursor-pointer hover:ring-2 hover:ring-primary apple-transition"
-                              title="Click para ver preview"
-                            >
-                              <span className="material-icons-round text-2xl text-primary">{getFileIcon(details.final_design.type)}</span>
+                    {details.final_designs.length > 0 ? (
+                      <div className="grid grid-cols-2 gap-3">
+                        {details.final_designs.map((design, idx) => (
+                          <motion.div
+                            key={design.id}
+                            className="glass rounded-xl p-3 border border-white/10 group hover:border-primary/40 apple-transition"
+                            initial={{ opacity: 0, y: 5 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ ...springConfig.gentle, delay: idx * 0.05 }}
+                          >
+                            <div className="flex items-start gap-2.5">
+                              {design.type.startsWith('image/') ? (
+                                <img
+                                  src={design.url}
+                                  alt={design.name}
+                                  onClick={() => openPreview(design.url)}
+                                  className="w-14 h-14 rounded-lg object-cover border border-white/10 cursor-pointer hover:opacity-80 hover:ring-2 hover:ring-primary apple-transition flex-shrink-0"
+                                  title="Click para ver preview"
+                                />
+                              ) : (
+                                <div
+                                  onClick={() => openPreview(design.url)}
+                                  className="w-14 h-14 rounded-lg glass-light flex items-center justify-center cursor-pointer hover:ring-2 hover:ring-primary apple-transition flex-shrink-0"
+                                  title="Click para ver preview"
+                                >
+                                  <span className="material-icons-round text-xl text-primary">{getFileIcon(design.type)}</span>
+                                </div>
+                              )}
+                              <div className="flex-1 min-w-0">
+                                <p
+                                  onClick={() => openPreview(design.url)}
+                                  className="text-xs font-medium text-text-light dark:text-white truncate cursor-pointer hover:text-primary apple-transition"
+                                >
+                                  {design.name}
+                                </p>
+                                <p className="text-[10px] text-muted-dark">{formatFileSize(design.size)}</p>
+                                <p className="text-[9px] text-muted-dark mt-0.5">
+                                  {new Date(design.uploaded_at).toLocaleDateString()}
+                                </p>
+                                <div className="flex gap-1 mt-1.5">
+                                  <motion.button
+                                    onClick={() => downloadFile(design.url, design.name)}
+                                    className="p-1 rounded-lg bg-primary/10 text-primary hover:bg-primary hover:text-white apple-transition"
+                                    title="Descargar"
+                                    whileHover={{ scale: 1.1 }}
+                                    whileTap={{ scale: 0.9 }}
+                                  >
+                                    <span className="material-icons-round text-xs">download</span>
+                                  </motion.button>
+                                  <motion.button
+                                    onClick={() => removeFinalDesign(design)}
+                                    className="p-1 rounded-lg glass-light text-muted-dark hover:text-red-500 apple-transition"
+                                    title="Eliminar"
+                                    whileHover={{ scale: 1.1 }}
+                                    whileTap={{ scale: 0.9 }}
+                                  >
+                                    <span className="material-icons-round text-xs">delete</span>
+                                  </motion.button>
+                                </div>
+                              </div>
                             </div>
-                          )}
-                          <div className="flex-1 min-w-0">
-                            <p
-                              onClick={() => openPreview(details.final_design!.url)}
-                              className="text-sm font-medium text-text-light dark:text-white truncate cursor-pointer hover:text-primary apple-transition"
-                            >
-                              {details.final_design.name}
-                            </p>
-                            <p className="text-xs text-muted-dark">{formatFileSize(details.final_design.size)}</p>
-                            <p className="text-[10px] text-muted-dark mt-0.5">
-                              Subido: {new Date(details.final_design.uploaded_at).toLocaleDateString()}
-                            </p>
-                          </div>
-                          <div className="flex flex-col gap-1 ml-2">
-                            <motion.button
-                              onClick={() => downloadFile(details.final_design!.url, details.final_design!.name)}
-                              className="p-2 rounded-xl bg-primary/10 text-primary hover:bg-primary hover:text-white apple-transition"
-                              title="Descargar"
-                              whileHover={{ scale: 1.1 }}
-                              whileTap={{ scale: 0.9 }}
-                            >
-                              <span className="material-icons-round text-sm">download</span>
-                            </motion.button>
-                            <motion.button
-                              onClick={() => finalDesignInputRef.current?.click()}
-                              className="p-2 rounded-xl glass-light text-muted-dark hover:text-primary apple-transition"
-                              title="Reemplazar"
-                              whileHover={{ scale: 1.1 }}
-                              whileTap={{ scale: 0.9 }}
-                            >
-                              <span className="material-icons-round text-sm">sync</span>
-                            </motion.button>
-                            <motion.button
-                              onClick={removeFinalDesign}
-                              className="p-2 rounded-xl glass-light text-muted-dark hover:text-red-500 apple-transition"
-                              title="Eliminar"
-                              whileHover={{ scale: 1.1 }}
-                              whileTap={{ scale: 0.9 }}
-                            >
-                              <span className="material-icons-round text-sm">delete</span>
-                            </motion.button>
-                          </div>
-                        </div>
+                          </motion.div>
+                        ))}
                       </div>
                     ) : (
                       <div
@@ -514,7 +522,7 @@ const RequestDetailModal: React.FC<RequestDetailModalProps> = ({ isOpen, onClose
                         className="border-2 border-dashed border-primary/30 rounded-xl p-6 text-center cursor-pointer hover:border-primary/60 apple-transition glass"
                       >
                         <span className="material-icons-round text-3xl text-primary/50 mb-2">brush</span>
-                        <p className="text-xs text-muted-dark">Sube aquí el diseño final para entrega</p>
+                        <p className="text-xs text-muted-dark">Sube aquí los diseños finales para entrega</p>
                       </div>
                     )}
                   </motion.div>

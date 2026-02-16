@@ -280,6 +280,20 @@ const App: React.FC = () => {
     }
   };
 
+  // Auto-set activeBoard for designers who only have access to one board
+  useEffect(() => {
+    if (!userProfile?.email) return;
+    const email = userProfile.email.toLowerCase();
+    const designerBoardMap: Record<string, number> = {
+      'yessica@digitaldc.com': 1,
+      'ramondesign@digitaldc.com': 2,
+    };
+    const assignedBoard = designerBoardMap[email];
+    if (assignedBoard != null) {
+      setActiveBoard(assignedBoard);
+    }
+  }, [userProfile?.email]);
+
   const handleLogout = async () => {
     await supabase.auth.signOut();
   };
@@ -807,7 +821,7 @@ const App: React.FC = () => {
 
   return (
     <div class="flex h-screen bg-background-light dark:bg-background-dark overflow-hidden font-sans text-text-light dark:text-text-dark">
-      <Sidebar currentPage={currentPage} onNavigate={setCurrentPage} activeBoard={activeBoard} onBoardChange={setActiveBoard} />
+      <Sidebar currentPage={currentPage} onNavigate={setCurrentPage} activeBoard={activeBoard} onBoardChange={setActiveBoard} userEmail={userProfile?.email} />
       <main class="flex-1 flex flex-col min-w-0 overflow-hidden relative">
         <Header
           title={pageTitle} notifications={inboxNotifications} unreadCount={unreadCount} onMarkRead={markNotificationRead} onMarkAllRead={markAllNotificationsRead} dateFilter={dateFilter} onDateFilterChange={setDateFilter} showFilters={currentPage === 'dashboard' || currentPage === 'reportes'} userProfile={userProfile} onLogout={handleLogout} activeBoard={activeBoard} onBoardChange={setActiveBoard}

@@ -3,14 +3,21 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Page } from '../types';
 import { springConfig, buttonTap } from '../lib/animations';
 
+// Board-to-designer mapping: each designer only sees their assigned board
+const DESIGNER_BOARD_MAP: Record<string, number> = {
+  'yessica@digitaldc.com': 1,
+  'ramondesign@digitaldc.com': 2,
+};
+
 interface SidebarProps {
   currentPage: Page;
   onNavigate: (page: Page) => void;
   activeBoard: number;
   onBoardChange: (board: number) => void;
+  userEmail?: string;
 }
 
-const Sidebar: React.FC<SidebarProps> = ({ currentPage, onNavigate, activeBoard, onBoardChange }) => {
+const Sidebar: React.FC<SidebarProps> = ({ currentPage, onNavigate, activeBoard, onBoardChange, userEmail }) => {
   const [boardMenuOpen, setBoardMenuOpen] = useState(false);
 
   const navItemClass = (page: Page) =>
@@ -102,7 +109,11 @@ const Sidebar: React.FC<SidebarProps> = ({ currentPage, onNavigate, activeBoard,
                 className="overflow-hidden"
               >
                 <div className="ml-6 pl-3 border-l border-white/10 mt-1 space-y-0.5">
-                  {[1, 2].map(board => (
+                  {([1, 2].filter(board => {
+                    if (!userEmail) return true;
+                    const assignedBoard = DESIGNER_BOARD_MAP[userEmail.toLowerCase()];
+                    return assignedBoard == null || assignedBoard === board;
+                  })).map(board => (
                     <motion.div
                       key={board}
                       onClick={() => { onBoardChange(board); onNavigate('produccion'); }}

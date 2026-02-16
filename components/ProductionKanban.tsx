@@ -10,7 +10,9 @@ interface ProductionKanbanProps {
   onViewDetail: (request: RequestData) => void;
   onEditRequest: (request: RequestData) => void;
   onDelete: (request: RequestData) => void;
+  onNewRequest?: () => void;
   loading?: boolean;
+  activeBoard?: number;
 }
 
 const COLUMNS: RequestStatus[] = ['Pendiente', 'En Producción', 'Revisión', 'Corrección', 'Entregado'];
@@ -50,19 +52,28 @@ interface KanbanCardProps {
   isExactMatch: boolean;
   isDragging: boolean;
   deleteConfirmId: string | null;
+  canMoveLeft: boolean;
+  canMoveRight: boolean;
   onDragStart: (e: React.DragEvent, id: string) => void;
   onDragEnd: () => void;
   onViewDetail: (request: RequestData) => void;
   onEditRequest: (request: RequestData) => void;
   onDeleteClick: (e: React.MouseEvent, req: RequestData) => void;
+  onMoveLeft: (e: React.MouseEvent, req: RequestData) => void;
+  onMoveRight: (e: React.MouseEvent, req: RequestData) => void;
 }
 
 const KanbanCard = memo<KanbanCardProps>(({
   req, idx, isExactMatch, isDragging, deleteConfirmId,
-  onDragStart, onDragEnd, onViewDetail, onEditRequest, onDeleteClick
+  canMoveLeft, canMoveRight,
+  onDragStart, onDragEnd, onViewDetail, onEditRequest, onDeleteClick,
+  onMoveLeft, onMoveRight
 }) => {
   const shouldAnimate = idx < MAX_ANIMATED_ITEMS;
   const typeColors = TYPE_COLORS[req.type] || TYPE_COLORS['Nueva solicitud'];
+
+  const attachmentCount = req.attachments?.length || 0;
+  const designCount = req.final_designs?.length || (req.final_design ? 1 : 0);
 
   return (
     <motion.div
@@ -115,7 +126,25 @@ const KanbanCard = memo<KanbanCardProps>(({
         )}
       </div>
 
-      {/* Bottom Row: User & Date */}
+      {/* Status Icons Row */}
+      {(attachmentCount > 0 || designCount > 0) && (
+        <div className="flex items-center gap-2.5 mb-2 relative z-10">
+          {attachmentCount > 0 && (
+            <span className="flex items-center gap-0.5 text-[10px] text-gray-500" title={`${attachmentCount} archivo(s) de referencia`}>
+              <span className="material-icons-round text-[13px]">attach_file</span>
+              {attachmentCount}
+            </span>
+          )}
+          {designCount > 0 && (
+            <span className="flex items-center gap-0.5 text-[10px] text-green-400" title={`${designCount} diseño(s) final(es)`}>
+              <span className="material-icons-round text-[13px]">brush</span>
+              {designCount}
+            </span>
+          )}
+        </div>
+      )}
+
+      {/* Bottom Row: User & Date + Actions */}
       <div className="flex items-center justify-between border-t border-white/10 pt-2 relative z-10">
         <div className="flex items-center space-x-1.5">
           <div className="w-5 h-5 rounded-full bg-gradient-to-br from-primary/30 to-primary/10 border border-primary/30 flex items-center justify-center text-[9px] text-primary font-bold shadow-sm">
@@ -126,11 +155,37 @@ const KanbanCard = memo<KanbanCardProps>(({
           </span>
         </div>
         <div className="flex items-center space-x-1">
-          <div className="bg-white/5 px-2 py-0.5 rounded-full border border-white/10">
+          {/* Date - hidden on hover to make room for actions */}
+          <div className="bg-white/5 px-2 py-0.5 rounded-full border border-white/10 group-hover:hidden">
             <span className="text-[9px] text-gray-400">
               {req.date}
             </span>
           </div>
+
+          {/* Quick Move Arrows - visible on hover */}
+          {canMoveLeft && (
+            <motion.button
+              onClick={(e) => onMoveLeft(e, req)}
+              className="p-1 rounded-lg apple-transition text-muted-dark hover:text-white hover:bg-white/10 hidden group-hover:flex items-center justify-center"
+              title="Mover a columna anterior"
+              whileHover={{ scale: 1.15 }}
+              whileTap={{ scale: 0.85 }}
+            >
+              <span className="material-icons-round text-xs">chevron_left</span>
+            </motion.button>
+          )}
+          {canMoveRight && (
+            <motion.button
+              onClick={(e) => onMoveRight(e, req)}
+              className="p-1 rounded-lg apple-transition text-muted-dark hover:text-white hover:bg-white/10 hidden group-hover:flex items-center justify-center"
+              title="Mover a columna siguiente"
+              whileHover={{ scale: 1.15 }}
+              whileTap={{ scale: 0.85 }}
+            >
+              <span className="material-icons-round text-xs">chevron_right</span>
+            </motion.button>
+          )}
+
           {/* Action buttons on hover */}
           <motion.button
             onClick={(e) => { e.stopPropagation(); onEditRequest(req); }}
@@ -161,7 +216,7 @@ const KanbanCard = memo<KanbanCardProps>(({
 
 KanbanCard.displayName = 'KanbanCard';
 
-const ProductionKanban: React.FC<ProductionKanbanProps> = ({ requests, onStatusChange, onViewDetail, onEditRequest, onDelete, loading = false }) => {
+const ProductionKanban: React.FC<ProductionKanbanProps> = ({ requests, onStatusChange, onViewDetail, onEditRequest, onDelete, onNewRequest, loading = false }) => {
   const [localSearch, setLocalSearch] = useState('');
   const [draggedRequestId, setDraggedRequestId] = useState<string | null>(null);
   const [activeDropZone, setActiveDropZone] = useState<RequestStatus | null>(null);
@@ -242,6 +297,25 @@ const ProductionKanban: React.FC<ProductionKanbanProps> = ({ requests, onStatusC
     setCorrectionModalOpen(false);
     setPendingCorrectionId(null);
   }, []);
+
+  // Quick move: arrows to move card to prev/next column
+  const handleQuickMove = useCallback((e: React.MouseEvent, req: RequestData, direction: 'left' | 'right') => {
+    e.stopPropagation();
+    const currentIdx = COLUMNS.indexOf(req.status);
+    if (currentIdx === -1) return;
+
+    const targetIdx = direction === 'left' ? currentIdx - 1 : currentIdx + 1;
+    if (targetIdx < 0 || targetIdx >= COLUMNS.length) return;
+
+    const targetStatus = COLUMNS[targetIdx];
+
+    if (targetStatus === 'Corrección') {
+      setPendingCorrectionId(req.id);
+      setCorrectionModalOpen(true);
+    } else {
+      onStatusChange(req.id, targetStatus);
+    }
+  }, [onStatusChange]);
 
   const handleDeleteClick = useCallback((e: React.MouseEvent, req: RequestData) => {
     e.stopPropagation();
@@ -431,6 +505,7 @@ const ProductionKanban: React.FC<ProductionKanbanProps> = ({ requests, onStatusC
                       {columnRequests.map((req, idx) => {
                         const isExactMatch = localSearch && req.id.toLowerCase() === localSearch.toLowerCase();
                         const isDragging = draggedRequestId === req.id;
+                        const colIndex = COLUMNS.indexOf(status);
 
                         return (
                           <KanbanCard
@@ -440,11 +515,15 @@ const ProductionKanban: React.FC<ProductionKanbanProps> = ({ requests, onStatusC
                             isExactMatch={!!isExactMatch}
                             isDragging={isDragging}
                             deleteConfirmId={deleteConfirmId}
+                            canMoveLeft={colIndex > 0}
+                            canMoveRight={colIndex < COLUMNS.length - 1}
                             onDragStart={handleDragStart}
                             onDragEnd={handleDragEnd}
                             onViewDetail={onViewDetail}
                             onEditRequest={onEditRequest}
                             onDeleteClick={handleDeleteClick}
+                            onMoveLeft={(e, r) => handleQuickMove(e, r, 'left')}
+                            onMoveRight={(e, r) => handleQuickMove(e, r, 'right')}
                           />
                         );
                       })}
@@ -480,6 +559,21 @@ const ProductionKanban: React.FC<ProductionKanbanProps> = ({ requests, onStatusC
                       </motion.div>
                     )}
                   </div>
+
+                  {/* Add Card Button - Bottom of column */}
+                  {onNewRequest && status === 'Pendiente' && (
+                    <div className={`px-3 pb-3 pt-1 border-t ${colStyles.border}`}>
+                      <motion.button
+                        onClick={onNewRequest}
+                        className="w-full px-3 py-2 rounded-xl text-xs font-medium text-muted-dark hover:text-white hover:bg-white/5 apple-transition flex items-center justify-center gap-1.5"
+                        whileHover={{ scale: 1.02 }}
+                        whileTap={buttonTap}
+                      >
+                        <span className="material-icons-round text-sm">add</span>
+                        Añadir solicitud
+                      </motion.button>
+                    </div>
+                  )}
                 </motion.div>
               );
             })}

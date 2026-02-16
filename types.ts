@@ -90,6 +90,7 @@ export interface DBEstadoSolicitud {
   usuario_id: string;
   timestamp: string; // Correct column name
   nota?: string;
+  board_number?: number;
 }
 
 export interface DBUsuario {
@@ -136,6 +137,7 @@ export interface AuditLogEntry {
   status: string; // The specific status set in this event
   action: string; // Derived description
   solicitudId?: string; // Link to request UUID for metrics
+  boardNumber?: number;
 }
 
 export interface User {

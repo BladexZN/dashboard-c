@@ -1,14 +1,17 @@
-import React from 'react';
-import { motion } from 'framer-motion';
+import React, { useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Page } from '../types';
 import { springConfig, buttonTap } from '../lib/animations';
 
 interface SidebarProps {
   currentPage: Page;
   onNavigate: (page: Page) => void;
+  activeBoard: number;
+  onBoardChange: (board: number) => void;
 }
 
-const Sidebar: React.FC<SidebarProps> = ({ currentPage, onNavigate }) => {
+const Sidebar: React.FC<SidebarProps> = ({ currentPage, onNavigate, activeBoard, onBoardChange }) => {
+  const [boardMenuOpen, setBoardMenuOpen] = useState(false);
 
   const navItemClass = (page: Page) =>
     `flex items-center px-3 py-2.5 text-sm font-medium rounded-xl transition-all cursor-pointer ${
@@ -69,16 +72,58 @@ const Sidebar: React.FC<SidebarProps> = ({ currentPage, onNavigate }) => {
           Solicitudes
         </motion.div>
 
-        <motion.div
-          onClick={() => onNavigate('produccion')}
-          className={navItemClass('produccion')}
-          whileHover={{ x: 4 }}
-          whileTap={buttonTap}
-          transition={springConfig.snappy}
-        >
-          <span className="material-icons-round mr-3 text-lg">brush</span>
-          Tablero de Diseño
-        </motion.div>
+        {/* Tablero de Diseño with board dropdown */}
+        <div>
+          <motion.div
+            onClick={() => setBoardMenuOpen(!boardMenuOpen)}
+            className={navItemClass('produccion')}
+            whileHover={{ x: 4 }}
+            whileTap={buttonTap}
+            transition={springConfig.snappy}
+          >
+            <span className="material-icons-round mr-3 text-lg">brush</span>
+            <span className="flex-1">Tablero de Diseño</span>
+            <motion.span
+              className="material-icons-round text-base"
+              animate={{ rotate: boardMenuOpen ? 180 : 0 }}
+              transition={springConfig.snappy}
+            >
+              expand_more
+            </motion.span>
+          </motion.div>
+
+          <AnimatePresence>
+            {boardMenuOpen && (
+              <motion.div
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: 'auto', opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                transition={{ duration: 0.2 }}
+                className="overflow-hidden"
+              >
+                <div className="ml-6 pl-3 border-l border-white/10 mt-1 space-y-0.5">
+                  {[1, 2].map(board => (
+                    <motion.div
+                      key={board}
+                      onClick={() => { onBoardChange(board); onNavigate('produccion'); }}
+                      className={`flex items-center px-3 py-2 text-sm font-medium rounded-lg cursor-pointer apple-transition ${
+                        currentPage === 'produccion' && activeBoard === board
+                          ? 'bg-primary/15 text-primary'
+                          : 'text-muted-dark hover:bg-white/5 hover:text-white'
+                      }`}
+                      whileHover={{ x: 3 }}
+                      whileTap={buttonTap}
+                      transition={springConfig.snappy}
+                    >
+                      <span className="material-icons-round mr-2 text-sm">dashboard</span>
+                      Tablero {board}
+                    </motion.div>
+                  ))}
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
 
         <motion.div
           onClick={() => onNavigate('reportes')}

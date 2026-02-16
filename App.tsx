@@ -105,6 +105,7 @@ const App: React.FC = () => {
 
   // --- APP STATE ---
   const [currentPage, setCurrentPage] = useState<Page>('dashboard');
+  const [activeBoard, setActiveBoard] = useState<number>(1);
   
   // DATA STATE
   const [requests, setRequests] = useState<RequestData[]>(DEV_MODE ? DEV_REQUESTS : []);
@@ -419,10 +420,13 @@ const App: React.FC = () => {
       const { data: statusData, error: statusError } = await supabase.from('estados_solicitud').select('*').order('timestamp', { ascending: true }).limit(20000);
       if (statusError) throw statusError;
 
-      const latestStatusMap: Record<string, RequestStatus> = {};
+      // Board-aware status map: board → solicitud_id → status
+      const boardStatusMap: Record<number, Record<string, RequestStatus>> = { 1: {}, 2: {} };
       if (statusData) {
         statusData.forEach(event => {
-          latestStatusMap[event.solicitud_id] = event.estado as RequestStatus;
+          const board = event.board_number || 1;
+          if (!boardStatusMap[board]) boardStatusMap[board] = {};
+          boardStatusMap[board][event.solicitud_id] = event.estado as RequestStatus;
         });
       }
 
@@ -431,7 +435,7 @@ const App: React.FC = () => {
 
       if (solicitudesData) {
         const mappedRequests = solicitudesData.map((dbReq: any) => {
-          const currentStatus = latestStatusMap[dbReq.id] || 'Pendiente';
+          const currentStatus = boardStatusMap[activeBoard]?.[dbReq.id] || 'Pendiente';
           const initials = dbReq.cliente ? dbReq.cliente.substring(0, 1).toUpperCase() : 'C';
           const clientColor = getClientColor(dbReq.cliente || 'Cliente');
           const advisorName = dbReq.asesor?.nombre || 'Sin Asignar';
@@ -478,7 +482,8 @@ const App: React.FC = () => {
             user: userMap[st.usuario_id] || 'Usuario',
             status: st.estado,
             action: st.estado === 'Pendiente' && !st.nota ? 'Solicitud creada' : `Cambio de estado: ${st.estado}`,
-            solicitudId: st.solicitud_id
+            solicitudId: st.solicitud_id,
+            boardNumber: st.board_number || 1
          }));
          setAuditLogs(logs.reverse());
       }
@@ -494,7 +499,7 @@ const App: React.FC = () => {
     } finally {
       if (currentFetchId === fetchIdRef.current) setDataLoading(false);
     }
-  }, [session, currentPage, dateFilter, fetchDeletedData]);
+  }, [session, currentPage, dateFilter, activeBoard, fetchDeletedData]);
 
   useEffect(() => {
     if (session) fetchAllData();
@@ -524,6 +529,9 @@ const App: React.FC = () => {
   }), [dashboardRequests, filterStatus, filterAdvisor, searchQuery]);
 
   const advisors = useMemo(() => Array.from(new Set(requests.map(r => r.advisor))), [requests]);
+
+  // Filter audit logs by active board
+  const filteredAuditLogs = useMemo(() => auditLogs.filter(log => log.boardNumber === activeBoard), [auditLogs, activeBoard]);
 
   const pageTitle = {
     dashboard: 'Dashboard Overview', solicitudes: 'Solicitudes', produccion: 'Tablero de Producción', bitacora: 'Bitácora Histórica', reportes: 'Reportes y Métricas', usuarios: 'Gestión de Usuarios', configuracion: 'Configuración del Sistema'
@@ -598,7 +606,7 @@ const App: React.FC = () => {
     const previousRequests = [...requests];
     setRequests(prev => prev.map(r => r.id === id ? { ...r, status: newStatus } : r));
     try {
-      const { error } = await supabase.from('estados_solicitud').insert([{ solicitud_id: internalId, estado: newStatus, usuario_id: userProfile?.id, timestamp: new Date().toISOString(), nota: nota || null }]);
+      const { error } = await supabase.from('estados_solicitud').insert([{ solicitud_id: internalId, estado: newStatus, usuario_id: userProfile?.id, timestamp: new Date().toISOString(), nota: nota || null, board_number: activeBoard }]);
       if (error) throw error;
 
       // Update completed_at when status changes to 'Entregado' (for auto-archive after 30 days)
@@ -655,6 +663,14 @@ const App: React.FC = () => {
         const payload = { cliente: data.client, producto: data.product, tipo: data.type, asesor_id: data.advisorId, prioridad: 'Media', descripcion: data.description || '', fecha_creacion: new Date().toISOString(), escaleta_video: data.escaleta || '', material_descargable: data.downloadable_links || [], attachments: data.attachments || [], is_deleted: false };
         const { data: insertedData, error: reqError } = await supabase.from('solicitudes').insert([payload]).select().single();
         if (reqError) throw reqError;
+        // Insert initial "Pendiente" status for BOTH boards
+        if (insertedData) {
+          const now = new Date().toISOString();
+          await supabase.from('estados_solicitud').insert([
+            { solicitud_id: insertedData.id, estado: 'Pendiente', usuario_id: userProfile.id, timestamp: now, board_number: 1 },
+            { solicitud_id: insertedData.id, estado: 'Pendiente', usuario_id: userProfile.id, timestamp: now, board_number: 2 }
+          ]);
+        }
         if (insertedData && settings.notifyProduction) {
            const folioDisplay = insertedData.folio ? `#REQ-${insertedData.folio}` : 'PENDING';
            const { data: recipients } = await supabase.from('usuarios').select('id').in('rol', ['Productor', 'Dirección']);
@@ -730,11 +746,11 @@ const App: React.FC = () => {
           />
         );
       case 'produccion':
-        return <ProductionKanban requests={filteredRequests} onStatusChange={handleStatusChange} onViewDetail={setDetailModalRequest} onEditRequest={(req) => { setEditingRequest(req); setIsNewModalOpen(true); }} onDelete={handleSoftDelete} />;
+        return <ProductionKanban requests={filteredRequests} onStatusChange={handleStatusChange} onViewDetail={setDetailModalRequest} onEditRequest={(req) => { setEditingRequest(req); setIsNewModalOpen(true); }} onDelete={handleSoftDelete} onNewRequest={() => setIsNewModalOpen(true)} activeBoard={activeBoard} />;
       case 'bitacora':
-        return <AuditLogView logs={auditLogs} deletedRequests={deletedRequests} onRestore={handleRestore} />;
+        return <AuditLogView logs={filteredAuditLogs} deletedRequests={deletedRequests} onRestore={handleRestore} />;
       case 'reportes':
-        return <ReportsView requests={requests} history={auditLogs} dateFilter={dateFilter} loading={dataLoading} />;
+        return <ReportsView requests={requests} history={filteredAuditLogs} dateFilter={dateFilter} loading={dataLoading} />;
       case 'usuarios':
         return <UsersView />;
       case 'configuracion':
@@ -791,10 +807,10 @@ const App: React.FC = () => {
 
   return (
     <div class="flex h-screen bg-background-light dark:bg-background-dark overflow-hidden font-sans text-text-light dark:text-text-dark">
-      <Sidebar currentPage={currentPage} onNavigate={setCurrentPage} />
+      <Sidebar currentPage={currentPage} onNavigate={setCurrentPage} activeBoard={activeBoard} onBoardChange={setActiveBoard} />
       <main class="flex-1 flex flex-col min-w-0 overflow-hidden relative">
-        <Header 
-          title={pageTitle} notifications={inboxNotifications} unreadCount={unreadCount} onMarkRead={markNotificationRead} onMarkAllRead={markAllNotificationsRead} dateFilter={dateFilter} onDateFilterChange={setDateFilter} showFilters={currentPage === 'dashboard' || currentPage === 'reportes'} userProfile={userProfile} onLogout={handleLogout}
+        <Header
+          title={pageTitle} notifications={inboxNotifications} unreadCount={unreadCount} onMarkRead={markNotificationRead} onMarkAllRead={markAllNotificationsRead} dateFilter={dateFilter} onDateFilterChange={setDateFilter} showFilters={currentPage === 'dashboard' || currentPage === 'reportes'} userProfile={userProfile} onLogout={handleLogout} activeBoard={activeBoard} onBoardChange={setActiveBoard}
         />
         <div class="flex-1 overflow-y-auto p-8 scroll-smooth">
            <div class="max-w-[1600px] mx-auto pb-8 h-full">
@@ -802,7 +818,7 @@ const App: React.FC = () => {
            </div>
         </div>
         <NewRequestModal isOpen={isNewModalOpen} onClose={() => { setIsNewModalOpen(false); setEditingRequest(null); }} onSave={handleSaveRequest} initialData={editingRequest} advisors={advisorsList} currentUser={userProfile} />
-        <RequestDetailModal isOpen={!!detailModalRequest} onClose={() => setDetailModalRequest(null)} request={detailModalRequest} onRefresh={fetchAllData} />
+        <RequestDetailModal isOpen={!!detailModalRequest} onClose={() => setDetailModalRequest(null)} request={detailModalRequest} onRefresh={fetchAllData} activeBoard={activeBoard} />
         <div class="absolute bottom-8 right-8 z-50 flex flex-col gap-2 pointer-events-none">
           {toastNotifications.map(n => (
             <div key={n.id} class="bg-surface-dark border border-border-dark text-white px-4 py-3 rounded-lg shadow-2xl flex items-center animate-in slide-in-from-bottom-5 duration-300 pointer-events-auto">

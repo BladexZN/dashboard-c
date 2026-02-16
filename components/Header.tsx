@@ -17,6 +17,8 @@ interface HeaderProps {
   showFilters: boolean;
   userProfile: UserProfile | null;
   onLogout: () => void;
+  activeBoard?: number;
+  onBoardChange?: (board: number) => void;
 }
 
 const Header: React.FC<HeaderProps> = ({
@@ -30,7 +32,9 @@ const Header: React.FC<HeaderProps> = ({
   onDateFilterChange,
   showFilters,
   userProfile,
-  onLogout
+  onLogout,
+  activeBoard,
+  onBoardChange
 }) => {
   const [showCalendar, setShowCalendar] = useState(false);
   const [isNotifOpen, setIsNotifOpen] = useState(false);

@@ -9,6 +9,7 @@ interface RequestDetailModalProps {
   onClose: () => void;
   request: RequestData | null;
   onRefresh?: () => void;
+  activeBoard?: number;
 }
 
 interface DetailState {
@@ -38,12 +39,14 @@ interface HistoryEvent {
   nota?: string;
 }
 
-const RequestDetailModal: React.FC<RequestDetailModalProps> = ({ isOpen, onClose, request, onRefresh }) => {
+const RequestDetailModal: React.FC<RequestDetailModalProps> = ({ isOpen, onClose, request, onRefresh, activeBoard = 1 }) => {
   const [details, setDetails] = useState<DetailState | null>(null);
   const [history, setHistory] = useState<HistoryEvent[]>([]);
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [uploadingFinal, setUploadingFinal] = useState(false);
+  const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
+  const [editingNoteText, setEditingNoteText] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
   const finalDesignInputRef = useRef<HTMLInputElement>(null);
 
@@ -54,7 +57,7 @@ const RequestDetailModal: React.FC<RequestDetailModalProps> = ({ isOpen, onClose
       setDetails(null);
       setHistory([]);
     }
-  }, [isOpen, request]);
+  }, [isOpen, request, activeBoard]);
 
   const fetchDetails = async (uuid: string) => {
     setLoading(true);
@@ -71,6 +74,7 @@ const RequestDetailModal: React.FC<RequestDetailModalProps> = ({ isOpen, onClose
         .from('estados_solicitud')
         .select(`*, usuario:usuarios!usuario_id(nombre)`)
         .eq('solicitud_id', uuid)
+        .eq('board_number', activeBoard)
         .order('timestamp', { ascending: true });
 
       if (histError) throw histError;
@@ -276,6 +280,30 @@ const RequestDetailModal: React.FC<RequestDetailModalProps> = ({ isOpen, onClose
     if (!error) {
       setDetails({ ...details, final_designs: newDesigns, final_design: newSingleDesign });
       onRefresh?.();
+    }
+  };
+
+  const startEditingNote = (event: HistoryEvent) => {
+    setEditingNoteId(event.id);
+    setEditingNoteText(event.nota || '');
+  };
+
+  const cancelEditingNote = () => {
+    setEditingNoteId(null);
+    setEditingNoteText('');
+  };
+
+  const saveNote = async (eventId: string) => {
+    const trimmed = editingNoteText.trim();
+    const { error } = await supabase
+      .from('estados_solicitud')
+      .update({ nota: trimmed || null })
+      .eq('id', eventId);
+
+    if (!error) {
+      setHistory(prev => prev.map(h => h.id === eventId ? { ...h, nota: trimmed || undefined } : h));
+      setEditingNoteId(null);
+      setEditingNoteText('');
     }
   };
 
@@ -644,10 +672,47 @@ const RequestDetailModal: React.FC<RequestDetailModalProps> = ({ isOpen, onClose
                               <p className="text-xs text-muted-dark mt-0.5">
                                 por <span className="text-text-light dark:text-gray-400">{event.usuario_nombre}</span>
                               </p>
-                              {event.nota && (
-                                <p className="text-xs text-gray-500 italic mt-1 glass-light p-1.5 rounded-lg border border-white/10">
-                                  "{event.nota}"
-                                </p>
+                              {editingNoteId === event.id ? (
+                                <div className="mt-1.5 space-y-1.5">
+                                  <textarea
+                                    value={editingNoteText}
+                                    onChange={(e) => setEditingNoteText(e.target.value)}
+                                    className="w-full glass-light border border-primary/30 rounded-lg px-2.5 py-1.5 text-xs text-white focus:outline-none focus:ring-2 focus:ring-primary/50 resize-none apple-transition"
+                                    rows={2}
+                                    autoFocus
+                                  />
+                                  <div className="flex gap-1.5">
+                                    <button
+                                      onClick={() => saveNote(event.id)}
+                                      className="px-2.5 py-1 text-[10px] font-medium bg-primary text-white rounded-lg hover:bg-primary-dark apple-transition"
+                                    >
+                                      Guardar
+                                    </button>
+                                    <button
+                                      onClick={cancelEditingNote}
+                                      className="px-2.5 py-1 text-[10px] font-medium text-muted-dark border border-white/10 rounded-lg hover:bg-white/5 apple-transition"
+                                    >
+                                      Cancelar
+                                    </button>
+                                  </div>
+                                </div>
+                              ) : (
+                                <div className="flex items-start gap-1 mt-1 group/note">
+                                  {event.nota ? (
+                                    <p className="text-xs text-gray-500 italic glass-light p-1.5 rounded-lg border border-white/10 flex-1">
+                                      "{event.nota}"
+                                    </p>
+                                  ) : (
+                                    <span className="text-[10px] text-muted-dark/50 italic flex-1">Sin nota</span>
+                                  )}
+                                  <button
+                                    onClick={() => startEditingNote(event)}
+                                    className="p-1 text-muted-dark hover:text-primary apple-transition opacity-0 group-hover/note:opacity-100 flex-shrink-0"
+                                    title={event.nota ? 'Editar nota' : 'Agregar nota'}
+                                  >
+                                    <span className="material-icons-round text-xs">{event.nota ? 'edit' : 'add_comment'}</span>
+                                  </button>
+                                </div>
                               )}
                             </div>
                           </motion.div>

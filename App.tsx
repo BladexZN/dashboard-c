@@ -421,7 +421,7 @@ const App: React.FC = () => {
         avatar: u.avatar_url || ''
       })) : [];
 
-      let query = supabase.from('solicitudes').select(`*, asesor:usuarios!asesor_id(id, nombre)`).eq('is_deleted', false).order('fecha_creacion', { ascending: false });
+      let query = supabase.from('solicitudes').select(`*, asesor:usuarios!asesor_id(id, nombre)`).eq('is_deleted', false).order('fecha_creacion', { ascending: true });
       
       if (currentPage === 'dashboard' || currentPage === 'reportes') {
          const { start, end } = getDateRange(dateFilter);
@@ -517,6 +517,16 @@ const App: React.FC = () => {
 
   useEffect(() => {
     if (session) fetchAllData();
+  }, [session, fetchAllData]);
+
+  useEffect(() => {
+    if (!session) return;
+    const channel = supabase
+      .channel('realtime-solicitudes')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'solicitudes' }, () => fetchAllData())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'estados_solicitud' }, () => fetchAllData())
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
   }, [session, fetchAllData]);
 
   const dashboardRequests = useMemo(() => requests, [requests]);

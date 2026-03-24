@@ -433,18 +433,30 @@ const App: React.FC = () => {
       const { data: solicitudesData, error: reqError } = await query;
       if (reqError) throw reqError;
 
-      const { data: statusData, error: statusError } = await supabase.from('estados_solicitud').select('*').order('timestamp', { ascending: true }).limit(20000);
-      if (statusError) throw statusError;
-
-      // Board-aware status map: board → solicitud_id → status
-      const boardStatusMap: Record<number, Record<string, RequestStatus>> = { 1: {}, 2: {} };
-      if (statusData) {
-        statusData.forEach(event => {
-          const board = event.board_number || 1;
-          if (!boardStatusMap[board]) boardStatusMap[board] = {};
-          boardStatusMap[board][event.solicitud_id] = event.estado as RequestStatus;
-        });
+      // Fetch status data in pages to overcome Supabase 1000-row default limit
+      let allStatusData: any[] = [];
+      let statusPage = 0;
+      const PAGE_SIZE = 1000;
+      while (true) {
+        const { data: statusChunk, error: statusError } = await supabase
+          .from('estados_solicitud')
+          .select('*')
+          .order('timestamp', { ascending: true })
+          .range(statusPage * PAGE_SIZE, (statusPage + 1) * PAGE_SIZE - 1);
+        if (statusError) throw statusError;
+        if (!statusChunk || statusChunk.length === 0) break;
+        allStatusData = [...allStatusData, ...statusChunk];
+        if (statusChunk.length < PAGE_SIZE) break;
+        statusPage++;
       }
+
+      // Board-aware status map: board → solicitud_id → status (last entry wins)
+      const boardStatusMap: Record<number, Record<string, RequestStatus>> = { 1: {}, 2: {} };
+      allStatusData.forEach(event => {
+        const board = event.board_number || 1;
+        if (!boardStatusMap[board]) boardStatusMap[board] = {};
+        boardStatusMap[board][event.solicitud_id] = event.estado as RequestStatus;
+      });
 
       // If this fetch is no longer the latest, abort updates
       if (currentFetchId !== fetchIdRef.current) return;
@@ -484,13 +496,13 @@ const App: React.FC = () => {
         setRequests(mappedRequests);
       }
 
-      if (statusData && solicitudesData) {
+      if (allStatusData.length > 0 && solicitudesData) {
          const folioMap = solicitudesData.reduce((acc: any, req: any) => {
             acc[req.id] = req.folio ? `#REQ-${req.folio}` : 'PENDING';
             return acc;
          }, {} as Record<string, string>);
 
-         const logs: AuditLogEntry[] = statusData.map(st => ({
+         const logs: AuditLogEntry[] = allStatusData.map(st => ({
             id: st.id,
             timestamp: st.timestamp,
             displayTime: new Date(st.timestamp).toLocaleString(),
@@ -680,13 +692,12 @@ const App: React.FC = () => {
       }
 
       addToast(`Estado de ${req.id} actualizado.`, 'success');
-      fetchAllData();
     } catch (err) {
       addToast("Error al guardar el nuevo estado. Revertido.", "info");
       setRequests(previousRequests);
     } finally {
-      // Release the lock after a brief delay so Realtime doesn't race
-      setTimeout(() => { isStatusUpdatingRef.current = false; }, 1000);
+      // Release the lock after a delay so Realtime refresh uses fresh data
+      setTimeout(() => { isStatusUpdatingRef.current = false; }, 2000);
     }
   };
 

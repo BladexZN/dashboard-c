@@ -117,6 +117,8 @@ const App: React.FC = () => {
 
   // Guard for race conditions
   const fetchIdRef = useRef(0);
+  const isStatusUpdatingRef = useRef(false);
+  const realtimeDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Notification Systems
   const [toastNotifications, setToastNotifications] = useState<Notification[]>([]); 
@@ -521,12 +523,23 @@ const App: React.FC = () => {
 
   useEffect(() => {
     if (!session) return;
+    const debouncedFetch = () => {
+      // Skip if a status update is in progress (prevents reverting optimistic updates)
+      if (isStatusUpdatingRef.current) return;
+      if (realtimeDebounceRef.current) clearTimeout(realtimeDebounceRef.current);
+      realtimeDebounceRef.current = setTimeout(() => {
+        if (!isStatusUpdatingRef.current) fetchAllData();
+      }, 500);
+    };
     const channel = supabase
       .channel('realtime-solicitudes')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'solicitudes' }, () => fetchAllData())
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'estados_solicitud' }, () => fetchAllData())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'solicitudes' }, debouncedFetch)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'estados_solicitud' }, debouncedFetch)
       .subscribe();
-    return () => { supabase.removeChannel(channel); };
+    return () => {
+      if (realtimeDebounceRef.current) clearTimeout(realtimeDebounceRef.current);
+      supabase.removeChannel(channel);
+    };
   }, [session, fetchAllData]);
 
   const dashboardRequests = useMemo(() => requests, [requests]);
@@ -629,6 +642,7 @@ const App: React.FC = () => {
     if (!internalId || req.status === newStatus) return;
     const previousRequests = [...requests];
     setRequests(prev => prev.map(r => r.id === id ? { ...r, status: newStatus } : r));
+    isStatusUpdatingRef.current = true;
     try {
       const { error } = await supabase.from('estados_solicitud').insert([{ solicitud_id: internalId, estado: newStatus, usuario_id: userProfile?.id, timestamp: new Date().toISOString(), nota: nota || null, board_number: activeBoard }]);
       if (error) throw error;
@@ -670,6 +684,9 @@ const App: React.FC = () => {
     } catch (err) {
       addToast("Error al guardar el nuevo estado. Revertido.", "info");
       setRequests(previousRequests);
+    } finally {
+      // Release the lock after a brief delay so Realtime doesn't race
+      setTimeout(() => { isStatusUpdatingRef.current = false; }, 1000);
     }
   };
 
